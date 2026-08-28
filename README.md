@@ -23,7 +23,7 @@ Plus four **domain profiles** (academic, docs, blog, commit) with their own carv
 
 ## What it detects (44 patterns)
 
-Inherits 35 from [blader/humanizer](https://github.com/blader/humanizer) v2.11.2 (significance inflation, promotional language, em-dash overuse, rule of three, AI vocabulary, copula avoidance, sycophancy, filler phrases, hedging, generic conclusions, forced punchlines, formulaic sayings, fake-candid openings, shadowboxing, fake alternatives, …) — summaries in [SKILL.md](SKILL.md), full text with before/after in [patterns/core.md](patterns/core.md). Upstream's no-fabrication rule and false-positive guardrails are adopted too.
+Inherits 35 from [blader/humanizer](https://github.com/blader/humanizer) v2.11.2 (significance inflation, em-dash overuse, rule of three, sycophancy, shadowboxing, fake alternatives, …) — summaries in [SKILL.md](SKILL.md), full text with before/after in [patterns/core.md](patterns/core.md). Upstream's no-fabrication rule and false-positive guardrails are adopted too.
 
 New extensions (#36-44):
 
@@ -39,14 +39,25 @@ New extensions (#36-44):
 | 43 | Methodology pseudo-precision ("careful", "rigorous", "comprehensive") | Self-praise without specifics |
 | 44 | Dissertation-grade hedging where stance is required | Academic-only |
 
-## Install (Claude Code, global)
+## Install (Claude Code plugin — recommended)
+
+```
+/plugin marketplace add kimhons/humanize
+/plugin install humanize@humanize
+```
+
+The plugin registers the skill, the `humanizer-reviewer` subagent, and the PostToolUse
+hook automatically. To add the optional always-on rule, run `scripts/install.sh` too.
+
+## Install (Claude Code, file-based)
 
 ```bash
 # Clone
 git clone https://github.com/kimhons/humanize.git ~/.claude/skills/humanize
 # Activate the agent
 cp ~/.claude/skills/humanize/agents/humanizer-reviewer.md ~/.claude/agents/
-# Wire the hook (one-line append to settings.json — see scripts/install.sh)
+# Install skill + rule, then wire the hook into settings.json (copy the
+# PostToolUse entry from hooks/hooks.json, adjusting the script path)
 bash ~/.claude/skills/humanize/scripts/install.sh
 ```
 
@@ -56,12 +67,13 @@ For OpenCode users:
 git clone https://github.com/kimhons/humanize.git ~/.config/opencode/skills/humanize
 ```
 
-## Install (manual, single-file)
+## Install (skill only, no git history)
 
 ```bash
-mkdir -p ~/.claude/skills/humanize
-curl -L https://raw.githubusercontent.com/kimhons/humanize/main/SKILL.md \
-     -o ~/.claude/skills/humanize/SKILL.md
+git clone --depth 1 https://github.com/kimhons/humanize.git /tmp/humanize &&
+  mkdir -p ~/.claude/skills/humanize &&
+  cp -r /tmp/humanize/SKILL.md /tmp/humanize/patterns ~/.claude/skills/humanize/ &&
+  rm -rf /tmp/humanize
 ```
 
 ## Usage
