@@ -1,6 +1,6 @@
 # humanize
 
-> Anti-slop framework for Claude Code. Skill + scorer + agent + hook + always-on rule. Strips 38 AI-writing patterns. Domain-aware (academic / docs / blog / commit). Extends [blader/humanizer](https://github.com/blader/humanizer).
+> Anti-slop framework for Claude Code. Skill + scorer + agent + hook + always-on rule. Strips 44 AI-writing patterns. Domain-aware (academic / docs / blog / commit). Extends [blader/humanizer](https://github.com/blader/humanizer) (synced at v2.11.2).
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Compatible: Claude Code](https://img.shields.io/badge/Compatible-Claude%20Code-blue)](https://claude.ai/claude-code)
@@ -21,23 +21,23 @@
 
 Plus four **domain profiles** (academic, docs, blog, commit) with their own carve-outs. Em-dashes are fine in scientific prose. Passive voice is correct in IMRaD methods. Vague attributions are flagged hard in academic but allowed (with citation) in docs. The framework adapts.
 
-## What it detects (38 patterns)
+## What it detects (44 patterns)
 
-Inherits 29 from [blader/humanizer](https://github.com/blader/humanizer) (significance inflation, promotional language, em-dash overuse, rule of three, AI vocabulary, copula avoidance, sycophancy, filler phrases, hedging, generic conclusions, …) — full list with before/after in [SKILL.md](SKILL.md).
+Inherits 35 from [blader/humanizer](https://github.com/blader/humanizer) v2.11.2 (significance inflation, promotional language, em-dash overuse, rule of three, AI vocabulary, copula avoidance, sycophancy, filler phrases, hedging, generic conclusions, forced punchlines, formulaic sayings, fake-candid openings, shadowboxing, fake alternatives, …) — summaries in [SKILL.md](SKILL.md), full text with before/after in [patterns/core.md](patterns/core.md). Upstream's no-fabrication rule and false-positive guardrails are adopted too.
 
-New extensions (#30-38):
+New extensions (#36-44):
 
 | # | Pattern | Why it matters |
 |---|---|---|
-| 30 | Citation laundering ("studies show" with no citation) | Academic-killer |
-| 31 | Manuscript boilerplate ("To the best of our knowledge…") | Generic paper opener |
-| 32 | Tutorial-script scaffolding ("Let's walk through…") | Doc tutorial-script feel |
-| 33 | Stat parade without effect size | Frequentist hedging |
-| 34 | Temporal hedge ladders | Stacked time-disclaimers |
-| 35 | Polysyndetic tripleting | Stronger rule-of-three |
-| 36 | AI-flavoured commit verbs ("improves", "enhances") | Commit-specific |
-| 37 | Methodology pseudo-precision ("careful", "rigorous", "comprehensive") | Self-praise without specifics |
-| 38 | Dissertation-grade hedging where stance is required | Academic-only |
+| 36 | Citation laundering ("studies show" with no citation) | Academic-killer |
+| 37 | Manuscript boilerplate ("To the best of our knowledge…") | Generic paper opener |
+| 38 | Tutorial-script scaffolding ("Let's walk through…") | Doc tutorial-script feel |
+| 39 | Stat parade without effect size | Frequentist hedging |
+| 40 | Temporal hedge ladders | Stacked time-disclaimers |
+| 41 | Polysyndetic tripleting | Stronger rule-of-three |
+| 42 | AI-flavoured commit verbs ("improves", "enhances") | Commit-specific |
+| 43 | Methodology pseudo-precision ("careful", "rigorous", "comprehensive") | Self-praise without specifics |
+| 44 | Dissertation-grade hedging where stance is required | Academic-only |
 
 ## Install (Claude Code, global)
 

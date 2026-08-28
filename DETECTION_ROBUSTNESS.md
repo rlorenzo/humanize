@@ -229,7 +229,7 @@ For any prose deliverable headed to a journal / Middlesex submission / public re
 draft.md
    │
    ▼
-[L3 /humanize]  ── style cleanup, 38 patterns, voice calibration
+[L3 /humanize]  ── style cleanup, 44 patterns, voice calibration
    │
    ▼
 [L6 humanize_score]  ── numeric style score; iterate to <40

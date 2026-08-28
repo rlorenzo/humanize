@@ -1,7 +1,8 @@
 [project]
 name = "humanize"
-version = "1.0.0"
-description = "Anti-slop framework for Claude Code: skill + scorer + agent + hook. 38 AI-writing patterns, domain-aware. Extends blader/humanizer."
+# Keep version in sync with .claude-plugin/plugin.json and SKILL.md metadata.version.
+version = "1.1.0"
+description = "Anti-slop framework for Claude Code: skill + scorer + agent + hook. Domain-aware AI-writing pattern detection. Extends blader/humanizer."
 authors = [
     {name = "Kimal Honour Djam", email = "kimhons@gmail.com"},
 ]

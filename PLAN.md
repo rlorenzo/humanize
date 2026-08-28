@@ -3,7 +3,9 @@
 **Author:** Kimal H. Djam (kimhons) — public-domain repo
 **Inspired by:** [blader/humanizer](https://github.com/blader/humanizer) (MIT, 2.4k stars) — credit + extends
 **License:** MIT
-**Status:** Plan v1.0 (2026-04-27)
+**Status:** Plan v1.0 (2026-04-27) — historical snapshot. Numbering below is
+the original 38-pattern scheme; the catalogue now has 44 patterns with the
+extensions at #36-44 (see SKILL.md).
 
 ---
 
