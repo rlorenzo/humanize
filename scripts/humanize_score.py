@@ -14,6 +14,7 @@ Usage:
    python humanize_score.py FILE.md
    python humanize_score.py --profile=academic FILE.md
    python humanize_score.py --json FILE.md > result.json
+   echo '{"tool_input":{"file_path":"FILE.md"}}' | python humanize_score.py --hook
 
 Profile detection (auto unless --profile= is given):
    MANUSCRIPT*.md, *thesis*.md, *.tex     -> academic
@@ -26,6 +27,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import sys
 from dataclasses import dataclass, field
@@ -118,6 +120,8 @@ PATTERNS: list[Pattern] = [
         weight=1.5,
     ),
     # 7 AI vocabulary
+    # Figurative "gate/gated" is omitted: indistinguishable from technical usage
+    # (feature gates, gated APIs) in regex.
     Pattern(
         7,
         "ai_vocabulary",
@@ -266,8 +270,6 @@ PATTERNS: list[Pattern] = [
         weight=1.2,
     ),
     # 28 Signposting announcements
-    # Note: figurative "gate/gated" (as in "the real gatekeeping is...") is deliberately
-    # omitted — it's indistinguishable from technical usage (feature gates, gated APIs) in regex.
     Pattern(
         28,
         "signposting",
@@ -281,7 +283,7 @@ PATTERNS: list[Pattern] = [
     ),
     # 29 Fragmented headers — heuristic, computed separately
     Pattern(29, "fragmented_headers", _re(r"$^"), weight=0.0),  # placeholder
-    # ---- Extensions 30-35 (new, upstream) ----
+    # ---- Patterns 30-35 (upstream) ----
     # 30 Previous-version writing (docs describing the old implementation, not current behavior)
     Pattern(
         30,
@@ -343,7 +345,7 @@ PATTERNS: list[Pattern] = [
         ),
         weight=1.0,
     ),
-    # ---- Extensions 36-44 (fork, renumbered from 30-38) ----
+    # ---- Patterns 36-44 (this fork's extensions) ----
     # 36 Citation laundering
     Pattern(
         36,
@@ -590,6 +592,60 @@ def score_text(text: str, profile: str = "blog") -> dict:
     }
 
 
+# ---- PostToolUse hook mode ----------------------------------------------------
+
+PROSE_SUFFIXES = {".md", ".tex", ".rst", ".txt"}
+SKIP_PATH_PARTS = (".claude/", "/node_modules/", "/.git/")
+
+
+def run_hook() -> int:
+    """Read a Claude Code PostToolUse JSON payload from stdin, score the written
+    file if it is prose, and emit hookSpecificOutput.additionalContext JSON when
+    the score exceeds HUMANIZE_THRESHOLD (default 60).
+
+    Always exits 0: a scoring problem must never block a write.
+    """
+    try:
+        file_path = json.load(sys.stdin).get("tool_input", {}).get("file_path", "")
+        path = Path(file_path)
+        if (
+            not file_path
+            or path.suffix.lower() not in PROSE_SUFFIXES
+            or any(part in str(path).replace("\\", "/") for part in SKIP_PATH_PARTS)
+            or not path.is_file()
+        ):
+            return 0
+        try:
+            threshold = float(os.environ.get("HUMANIZE_THRESHOLD", "60"))
+        except ValueError:
+            threshold = 60.0
+        text = path.read_text(encoding="utf-8", errors="replace")
+        result = score_text(text, profile=detect_profile(path))
+        if result["score"] <= threshold:
+            return 0
+        offenders = ", ".join(
+            f"{o['pattern']} (weighted={o['weighted']})" for o in result["top_offenders"][:3]
+        )
+        context = (
+            f"[humanize] {file_path} scored {result['score']}/100 ({result['verdict']}), "
+            f"above threshold {threshold:g}. Top offenders: {offenders}. "
+            f"Consider rewriting with the humanize skill (/humanize {file_path})."
+        )
+        print(
+            json.dumps(
+                {
+                    "hookSpecificOutput": {
+                        "hookEventName": "PostToolUse",
+                        "additionalContext": context,
+                    }
+                }
+            )
+        )
+    except Exception:
+        pass
+    return 0
+
+
 # ---- CLI ----------------------------------------------------------------------
 
 
@@ -597,7 +653,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="Score a text file on AI-writing patterns. Lower score = more human."
     )
-    parser.add_argument("path", help="Path to text file (.md, .tex, .txt, ...)")
+    parser.add_argument("path", nargs="?", help="Path to text file (.md, .tex, .txt, ...)")
     parser.add_argument(
         "--profile",
         choices=["academic", "docs", "blog", "commit", "auto"],
@@ -611,7 +667,17 @@ def main(argv: list[str] | None = None) -> int:
         default=60.0,
         help="Exit non-zero if score exceeds threshold (default 60).",
     )
+    parser.add_argument(
+        "--hook",
+        action="store_true",
+        help="PostToolUse hook mode: read tool JSON from stdin, warn via hookSpecificOutput.",
+    )
     args = parser.parse_args(argv)
+
+    if args.hook:
+        return run_hook()
+    if not args.path:
+        parser.error("path is required unless --hook is given")
 
     path = Path(args.path)
     if not path.is_file():
