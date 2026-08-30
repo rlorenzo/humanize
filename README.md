@@ -12,12 +12,12 @@
 
 | Layer | Component | Triggered by |
 |---|---|---|
-| 1 | Standing rule in `~/.claude/CLAUDE.md` | Loaded into every session |
-| 2 | Always-on rule file at `~/.claude/rules/10-anti-slop.md` | Same |
-| 3 | `/humanize` slash command | Manual invocation |
-| 4 | PostToolUse hook on Write/Edit | Fires automatically when Claude writes prose |
-| 5 | `humanizer-reviewer` subagent | Called by `/ship`, `/review-paper`, on demand |
-| 6 | `humanize_score.py` CLI | Fast scoring; exits non-zero above threshold |
+| 1 | Always-on rule file at `~/.claude/rules/10-anti-slop.md` | Loaded into every session |
+| 2 | `/humanize` slash command | Manual invocation |
+| 3 | PostToolUse hook on Write/Edit | Fires automatically when Claude writes prose |
+| 4 | `humanizer-reviewer` subagent | Called by `/ship`, `/review-paper`, on demand |
+| 5 | `humanize_score.py` CLI | Pattern scoring; exits non-zero above threshold |
+| 6 | `burstiness_check.py` CLI | Statistical signatures the pattern list cannot see |
 
 Plus four **domain profiles** (academic, docs, blog, commit) with their own carve-outs. Em-dashes are fine in scientific prose. Passive voice is correct in IMRaD methods. Vague attributions are flagged hard in academic but allowed (with citation) in docs. The framework adapts.
 
@@ -110,6 +110,35 @@ top offenders:
 # JSON output for CI / pipelines
 python humanize_score.py --json --profile=docs README.md
 ```
+
+### Statistical check
+
+`burstiness_check.py` measures what the pattern list structurally cannot: a draft
+can score clean on all 44 patterns and still read as machine-written because every
+sentence is the same length.
+
+```bash
+$ python ~/.claude/skills/humanize/scripts/burstiness_check.py STAGE3/MANUSCRIPT.md
+sentence_cv:     0.61   (want >= 0.55, or >= 0.50 with --profile=esl)
+paragraph_cv:    0.44   (want >= 0.40)
+```
+
+Read those two metrics. **Ignore its `signature_score` and `verdict`** — two of the
+five underlying checks are calibrated against different quantities than the ones
+computed, so every document over 50 words currently reports `heavy-AI-signature`
+regardless of quality. The module docstring has the measurements and the fix.
+
+### Installing the scorers as commands
+
+Optional, if you want them on your `PATH` outside Claude Code:
+
+```bash
+pip install .          # or: uv tool install .
+humanize-score --profile=academic MANUSCRIPT.md
+burstiness-check MANUSCRIPT.md
+```
+
+Both scorers are pure Python with **zero dependencies** and run on 3.9+.
 
 ### Hooked into commit time
 
