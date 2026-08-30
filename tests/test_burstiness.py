@@ -77,9 +77,38 @@ def test_coefficient_of_variation_uniform_is_zero_varied_is_positive():
     assert bc.coefficient_of_variation([2, 20, 5, 40]) > 0.5
 
 
-def test_lexical_diversity_short_text_is_plain_ttr():
-    assert bc.lexical_diversity(["a", "b", "a", "b"]) == 0.5
-    assert bc.lexical_diversity([]) == 0.0
+def test_lexical_diversity_is_undefined_below_the_window():
+    """Under 50 words MATTR-50 has no meaning, so the metric declines to guess.
+
+    It used to return whole-document TTR here. TTR falls as a document grows and
+    MATTR does not, so that made one name carry two incomparable quantities, both
+    checked against a single band.
+    """
+    assert bc.lexical_diversity(["a", "b", "a", "b"]) is None
+    assert bc.lexical_diversity([]) is None
+    assert bc.lexical_diversity([f"w{i}" for i in range(bc.MATTR_WINDOW - 1)]) is None
+    # Exactly at the window it becomes defined.
+    assert bc.lexical_diversity([f"w{i}" for i in range(bc.MATTR_WINDOW)]) == 1.0
+
+
+def test_undefined_metric_contributes_no_flag_and_no_penalty():
+    targets = bc.resolve_targets("default")
+    values = {
+        "sentence_cv": targets["sentence_cv"],
+        "paragraph_cv": targets["paragraph_cv"],
+        "lexical_diversity": None,
+        "function_word_ratio": targets["function_word_ratio_min"],
+        "subordinate_density": targets["subordinate_density_min"],
+    }
+    flags, deviations = bc.apply_checks(values, targets)
+    assert flags == []
+    assert deviations == 0.0
+
+
+def test_short_text_reports_lexical_diversity_as_none():
+    result = bc.analyse("Short note. Not much here.")
+    assert result["metrics"]["lexical_diversity_mattr50"] is None
+    assert not any("lexical_diversity" in f for f in result["flags"])
 
 
 def test_lexical_diversity_long_text_uses_moving_window():
@@ -92,6 +121,33 @@ def test_lexical_diversity_long_text_uses_moving_window():
 def test_function_word_ratio():
     assert bc.function_word_ratio([]) == 0.0
     assert bc.function_word_ratio(["the", "and", "parser", "exploded"]) == 0.5
+
+
+def test_function_words_include_contractions():
+    """The tokenizer is [A-Za-z']+, so contractions arrive whole.
+
+    Without these entries the commonest function words in natural prose counted
+    against the ratio instead of toward it.
+    """
+    for token in ["don't", "it's", "they're", "i'm", "can't", "let's"]:
+        assert token in bc.FUNCTION_WORDS, token
+    assert bc.function_word_ratio(["it's", "not", "ready", "yet"]) == 0.75
+
+
+def test_function_words_cover_the_closed_classes():
+    """Spot-check each grammatical class the inventory claims to cover."""
+    for token in [
+        "the",  # determiner
+        "themselves",  # pronoun
+        "throughout",  # preposition
+        "whereas",  # subordinator
+        "might",  # modal auxiliary
+        "not",  # negator
+    ]:
+        assert token in bc.FUNCTION_WORDS, token
+    # Content words stay out.
+    for token in ["parser", "manuscript", "calibrate", "burstiness"]:
+        assert token not in bc.FUNCTION_WORDS, token
 
 
 def test_subordinate_density_counts_commas_and_semicolons():
