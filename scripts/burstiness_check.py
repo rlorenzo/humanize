@@ -28,6 +28,7 @@ import math
 import re
 import statistics
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 
 # A short list of high-frequency function words (for function-word ratio).
@@ -165,23 +166,72 @@ def shannon_word_entropy(words: list[str]) -> float:
     return -sum((c / total) * math.log2(c / total) for c in freq.values())
 
 
-def analyse(text: str, profile: str = "default") -> dict:
-    sentences = split_sentences(text)
-    paragraphs = split_paragraphs(text)
-    words = re.findall(r"[A-Za-z']+", text.lower())
+# ---- Threshold checks ---------------------------------------------------------
 
-    sentence_lengths = [len(s.split()) for s in sentences]
-    paragraph_lengths = [len(p.split()) for p in paragraphs]
+# Each metric is checked against one bound. Flag text and score penalty come from
+# the same table, so a target can never drift between "what we warn about" and
+# "what we score".
 
-    sentence_cv = coefficient_of_variation(sentence_lengths)
-    paragraph_cv = coefficient_of_variation(paragraph_lengths)
-    ttr = lexical_diversity(words)
-    fwr = function_word_ratio(words)
-    sub_density = subordinate_density(text, len(words))
-    entropy = shannon_word_entropy(words)
 
-    # Targets (profile-aware)
-    targets = {
+@dataclass(frozen=True)
+class Check:
+    metric: str  # key into the measured-values dict
+    bound: str  # "min" (flag when below) or "max" (flag when above)
+    target: str  # key into the profile-resolved targets dict
+    penalty: float  # deviation multiplier contributed to signature_score
+    hint: str  # remedy shown to the writer
+
+
+CHECKS: tuple[Check, ...] = (
+    Check("sentence_cv", "min", "sentence_cv", 100, "AI-uniform pacing — vary sentence length"),
+    Check(
+        "paragraph_cv",
+        "min",
+        "paragraph_cv",
+        100,
+        "AI-uniform paragraphs — vary paragraph length",
+    ),
+    Check(
+        "lexical_diversity",
+        "min",
+        "lexical_diversity_min",
+        200,
+        "vocabulary too repetitive",
+    ),
+    Check(
+        "lexical_diversity",
+        "max",
+        "lexical_diversity_max",
+        200,
+        "synonym cycling or thesaurus attack",
+    ),
+    Check(
+        "subordinate_density",
+        "min",
+        "subordinate_density_min",
+        200,
+        "uniform syntax — add subordinate clauses, parenthetical asides",
+    ),
+    Check(
+        "function_word_ratio",
+        "min",
+        "function_word_ratio_min",
+        300,
+        "noun/verb-heavy prose typical of AI",
+    ),
+    Check(
+        "function_word_ratio",
+        "max",
+        "function_word_ratio_max",
+        300,
+        "filler-heavy prose",
+    ),
+)
+
+
+def resolve_targets(profile: str) -> dict[str, float]:
+    """Threshold values for a profile. ESL writers get a looser sentence-CV bar."""
+    return {
         "sentence_cv": 0.50 if profile == "esl" else 0.55,
         "paragraph_cv": 0.40,
         "lexical_diversity_min": 0.40,
@@ -191,72 +241,66 @@ def analyse(text: str, profile: str = "default") -> dict:
         "function_word_ratio_max": 0.55,
     }
 
-    flags = []
-    if sentence_cv < targets["sentence_cv"]:
-        flags.append(
-            f"sentence_cv too low ({sentence_cv:.3f} < {targets['sentence_cv']}); "
-            "AI-uniform pacing — vary sentence length"
-        )
-    if paragraph_cv < targets["paragraph_cv"]:
-        flags.append(
-            f"paragraph_cv too low ({paragraph_cv:.3f} < {targets['paragraph_cv']}); "
-            "AI-uniform paragraphs — vary paragraph length"
-        )
-    if ttr < targets["lexical_diversity_min"]:
-        flags.append(
-            f"lexical_diversity too low ({ttr:.3f} < {targets['lexical_diversity_min']}); "
-            "vocabulary too repetitive"
-        )
-    elif ttr > targets["lexical_diversity_max"]:
-        flags.append(
-            f"lexical_diversity too high ({ttr:.3f} > {targets['lexical_diversity_max']}); "
-            "synonym cycling or thesaurus attack"
-        )
-    if sub_density < targets["subordinate_density_min"]:
-        flags.append(
-            f"subordinate_density too low ({sub_density:.3f} < {targets['subordinate_density_min']}); "
-            "uniform syntax — add subordinate clauses, parenthetical asides"
-        )
-    if fwr < targets["function_word_ratio_min"]:
-        flags.append(
-            f"function_word_ratio too low ({fwr:.3f}); noun/verb-heavy prose typical of AI"
-        )
-    elif fwr > targets["function_word_ratio_max"]:
-        flags.append(f"function_word_ratio too high ({fwr:.3f}); filler-heavy prose")
 
-    # Composite signature score (0=human, 100=very AI-uniform)
+def apply_checks(values: dict[str, float], targets: dict[str, float]) -> tuple[list[str], float]:
+    """Run every check, returning (flags, total weighted deviation)."""
+    flags: list[str] = []
     deviations = 0.0
-    if sentence_cv < targets["sentence_cv"]:
-        deviations += (targets["sentence_cv"] - sentence_cv) * 100
-    if paragraph_cv < targets["paragraph_cv"]:
-        deviations += (targets["paragraph_cv"] - paragraph_cv) * 100
-    if ttr < targets["lexical_diversity_min"]:
-        deviations += (targets["lexical_diversity_min"] - ttr) * 200
-    if ttr > targets["lexical_diversity_max"]:
-        deviations += (ttr - targets["lexical_diversity_max"]) * 200
-    if sub_density < targets["subordinate_density_min"]:
-        deviations += (targets["subordinate_density_min"] - sub_density) * 200
-    if fwr < targets["function_word_ratio_min"]:
-        deviations += (targets["function_word_ratio_min"] - fwr) * 300
-    elif fwr > targets["function_word_ratio_max"]:
-        deviations += (fwr - targets["function_word_ratio_max"]) * 300
+    for check in CHECKS:
+        value = values[check.metric]
+        target = targets[check.target]
+        if check.bound == "min":
+            shortfall = target - value
+            comparison = f"{value:.3f} < {target}"
+            direction = "too low"
+        else:
+            shortfall = value - target
+            comparison = f"{value:.3f} > {target}"
+            direction = "too high"
+        if shortfall <= 0:
+            continue
+        flags.append(f"{check.metric} {direction} ({comparison}); {check.hint}")
+        deviations += shortfall * check.penalty
+    return flags, deviations
 
+
+def verdict_for(signature_score: float) -> str:
+    if signature_score < 15:
+        return "human-like"
+    if signature_score < 35:
+        return "borderline"
+    if signature_score < 60:
+        return "AI-uniform"
+    return "heavy-AI-signature"
+
+
+# ---- Analysis -----------------------------------------------------------------
+
+
+def analyse(text: str, profile: str = "default") -> dict:
+    sentences = split_sentences(text)
+    paragraphs = split_paragraphs(text)
+    words = re.findall(r"[A-Za-z']+", text.lower())
+
+    sentence_lengths = [len(s.split()) for s in sentences]
+    paragraph_lengths = [len(p.split()) for p in paragraphs]
+
+    values = {
+        "sentence_cv": coefficient_of_variation(sentence_lengths),
+        "paragraph_cv": coefficient_of_variation(paragraph_lengths),
+        "lexical_diversity": lexical_diversity(words),
+        "function_word_ratio": function_word_ratio(words),
+        "subordinate_density": subordinate_density(text, len(words)),
+    }
+
+    targets = resolve_targets(profile)
+    flags, deviations = apply_checks(values, targets)
     signature_score = min(100.0, deviations)
-
-    verdict = (
-        "human-like"
-        if signature_score < 15
-        else "borderline"
-        if signature_score < 35
-        else "AI-uniform"
-        if signature_score < 60
-        else "heavy-AI-signature"
-    )
 
     return {
         "profile": profile,
         "signature_score": round(signature_score, 1),
-        "verdict": verdict,
+        "verdict": verdict_for(signature_score),
         "metrics": {
             "sentence_count": len(sentences),
             "paragraph_count": len(paragraphs),
@@ -267,15 +311,15 @@ def analyse(text: str, profile: str = "default") -> dict:
             "sentence_length_stdev": round(statistics.pstdev(sentence_lengths), 1)
             if len(sentence_lengths) > 1
             else 0,
-            "sentence_cv": round(sentence_cv, 3),
+            "sentence_cv": round(values["sentence_cv"], 3),
             "paragraph_length_mean": round(statistics.mean(paragraph_lengths), 1)
             if paragraph_lengths
             else 0,
-            "paragraph_cv": round(paragraph_cv, 3),
-            "lexical_diversity_ttr": round(ttr, 3),
-            "function_word_ratio": round(fwr, 3),
-            "subordinate_density": round(sub_density, 3),
-            "shannon_entropy_bits": round(entropy, 2),
+            "paragraph_cv": round(values["paragraph_cv"], 3),
+            "lexical_diversity_ttr": round(values["lexical_diversity"], 3),
+            "function_word_ratio": round(values["function_word_ratio"], 3),
+            "subordinate_density": round(values["subordinate_density"], 3),
+            "shannon_entropy_bits": round(shannon_word_entropy(words), 2),
         },
         "targets": targets,
         "flags": flags,

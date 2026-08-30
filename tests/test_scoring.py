@@ -68,7 +68,9 @@ def test_polysyndetic_tripleting_needs_three_triplets_in_one_paragraph():
         "and educators. The code is open, transparent, and reproducible."
     )
     assert hs.score_text(para)["breakdown"].get("polysyndetic_tripleting", 0) >= 1
-    assert "polysyndetic_tripleting" not in hs.score_text("It is fast, small, and free.")["breakdown"]
+    assert (
+        "polysyndetic_tripleting" not in hs.score_text("It is fast, small, and free.")["breakdown"]
+    )
 
 
 def test_formulaic_sayings_requires_copula():
