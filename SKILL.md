@@ -10,7 +10,7 @@ description: |
 license: MIT
 compatibility: Works with Claude Code and OpenCode. Scorer requires Python 3.9+.
 metadata:
-  version: "1.1.0"
+  version: "1.1.1"
   extends: https://github.com/blader/humanizer (MIT, synced at v2.11.2)
 allowed-tools:
   - Read
@@ -56,6 +56,7 @@ Manual: `/humanize [text]` or `/humanize --profile=academic [text]` or `/humaniz
 5. **Second-pass rewrite.** Apply the audit findings.
 
 6. **Score.** If a CLI is available, run `humanize_score.py` on the result; report the numeric score (0-100, lower = more human).
+   Then run `burstiness_check.py` on the same file. It catches what the pattern list cannot: uniform sentence and paragraph lengths, flat syntax, and thesaurus-driven vocabulary. A draft can score clean on all 44 patterns and still read as machine-written because every sentence is the same length. Aim for `signature_score` under 35; use `--profile=esl` when the author is a non-native speaker, which loosens the sentence-CV bar.
 
 7. **Output:**
    - Final humanised text
@@ -306,6 +307,8 @@ Then revise.
 ## Score
 humanize_score: NN/100 (lower = more human)
 top offenders: [pattern A, pattern B, pattern C]
+signature_score: NN/100 (lower = more human)
+flags: [flag A, flag B]
 
 ## Summary of changes
 - [biggest change 1]
@@ -317,6 +320,7 @@ top offenders: [pattern A, pattern B, pattern C]
 - `/ship` calls this skill before commit on any prose-heavy diff.
 - `/review-paper` invokes the `humanizer-reviewer` agent (separate file) for deeper review.
 - `/compile-paper` runs `humanize_score.py` as a pre-compile gate; if score > 60, blocks compilation with a warning.
+- The PostToolUse hook (`hooks/humanize-post-write.sh`) runs only `humanize_score.py`, because it fires on every write and the statistical metrics need a full draft to mean anything. Run `burstiness_check.py` by hand at step 6.
 
 ## Reference
 

@@ -20,7 +20,9 @@ cp "$REPO_DIR"/SKILL.md "$CLAUDE_HOME/skills/humanize/"
 cp "$REPO_DIR"/patterns/core.md "$CLAUDE_HOME/skills/humanize/patterns/"
 mkdir -p "$CLAUDE_HOME/skills/humanize/scripts"
 cp "$REPO_DIR/scripts/humanize_score.py" "$CLAUDE_HOME/skills/humanize/scripts/"
+cp "$REPO_DIR/scripts/burstiness_check.py" "$CLAUDE_HOME/skills/humanize/scripts/"
 chmod +x "$CLAUDE_HOME/skills/humanize/scripts/humanize_score.py"
+chmod +x "$CLAUDE_HOME/skills/humanize/scripts/burstiness_check.py"
 echo "[install] skill installed at $CLAUDE_HOME/skills/humanize/"
 
 # 2. Subagent
@@ -78,6 +80,7 @@ echo ""
 echo "[install] smoke-test the scorer..."
 echo "Studies show that this delves into the intricate landscape." > /tmp/humanize_smoke.md
 python3 "$CLAUDE_HOME/skills/humanize/scripts/humanize_score.py" /tmp/humanize_smoke.md || true
+python3 "$CLAUDE_HOME/skills/humanize/scripts/burstiness_check.py" /tmp/humanize_smoke.md || true
 rm /tmp/humanize_smoke.md
 
 echo ""
