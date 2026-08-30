@@ -56,7 +56,8 @@ Manual: `/humanize [text]` or `/humanize --profile=academic [text]` or `/humaniz
 5. **Second-pass rewrite.** Apply the audit findings.
 
 6. **Score.** If a CLI is available, run `humanize_score.py` on the result; report the numeric score (0-100, lower = more human).
-   Then run `burstiness_check.py` on the same file. It catches what the pattern list cannot: uniform sentence and paragraph lengths, flat syntax, and thesaurus-driven vocabulary. A draft can score clean on all 44 patterns and still read as machine-written because every sentence is the same length. Aim for `signature_score` under 35; use `--profile=esl` when the author is a non-native speaker, which loosens the sentence-CV bar.
+   Then run `burstiness_check.py` on the same file and read **only its `sentence_cv` and `paragraph_cv` metrics**, which catch what the pattern list cannot: a draft can score clean on all 44 patterns and still read as machine-written because every sentence is the same length. Want `sentence_cv` at or above 0.55 (0.50 with `--profile=esl`, for non-native speakers) and `paragraph_cv` at or above 0.40.
+   **Ignore its `signature_score` and `verdict` for now.** Two of the five checks are miscalibrated and dominate the composite: the `lexical_diversity` band (0.40-0.65) was set for whole-document type-token ratio while the code computes MATTR-50, which runs 0.77-0.85 on ordinary prose, and `function_word_ratio` is measured against a 56-word list against a threshold that assumes a full function-word inventory. Every document over 50 words therefore reads as `heavy-AI-signature` regardless of quality. Tracked; do not ask the writer to chase that number.
 
 7. **Output:**
    - Final humanised text
@@ -307,8 +308,7 @@ Then revise.
 ## Score
 humanize_score: NN/100 (lower = more human)
 top offenders: [pattern A, pattern B, pattern C]
-signature_score: NN/100 (lower = more human)
-flags: [flag A, flag B]
+sentence_cv / paragraph_cv: N.NN / N.NN (higher = more human; want >=0.55 / >=0.40)
 
 ## Summary of changes
 - [biggest change 1]

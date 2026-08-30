@@ -10,9 +10,27 @@ Pure Python, zero dependencies. Compatible with Python 3.9+.
 Targets (default):
    sentence_cv          >= 0.55 (>= 0.50 for ESL profile)
    paragraph_cv         >= 0.40
-   lexical_diversity    in [0.40, 0.65]
+   lexical_diversity    in [0.40, 0.65]    -- MISCALIBRATED, see below
    subordinate_density  >= 0.10 (commas+semicolons per word)
-   function_word_ratio  in [0.40, 0.55]
+   function_word_ratio  in [0.40, 0.55]    -- MISCALIBRATED, see below
+
+KNOWN ISSUE: trust sentence_cv and paragraph_cv; do not trust signature_score.
+Two checks are calibrated against different quantities than the ones computed,
+and because they carry the heaviest penalties (x200 and x300) they dominate the
+composite, so every document over 50 words reports "heavy-AI-signature":
+
+  * lexical_diversity: the [0.40, 0.65] band matches whole-document type-token
+    ratio, which falls as a document grows. lexical_diversity() computes MATTR-50
+    for any text of 50+ words, and a 50-word window of ordinary English prose
+    runs 0.77-0.85. Measured on six human-written files: plain TTR 0.41-0.43
+    (inside the band), MATTR-50 0.77-0.85 (far above it).
+  * function_word_ratio: FUNCTION_WORDS holds 56 entries, while the 0.40-0.55
+    band assumes a full function-word inventory (several hundred: prepositions,
+    auxiliaries, determiners, conjunctions, pronouns). Measured 0.15-0.25.
+
+Fixing it needs a real human-prose corpus to calibrate against; guessing new
+numbers from a handful of files would be the same pseudo-precision this project
+flags as pattern #43. Left as-is deliberately rather than silently re-tuned.
 
 Usage:
    python burstiness_check.py FILE.md
