@@ -5,10 +5,15 @@ on:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   pytest:
+    name: tests (py${{ matrix.python-version }})
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         python-version: ["3.9", "3.12"]
     steps:
@@ -16,11 +21,60 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: ${{ matrix.python-version }}
-      - run: pip install pytest
-      - run: python -m pytest -q
-      - name: Lint shell and JSON
+      - run: pip install pytest pytest-cov
+      - name: Test with coverage floor
+        run: python -m pytest --cov --cov-report=term-missing --cov-fail-under=80
+
+  lint:
+    name: lint and static analysis
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - run: pip install ruff pylint vulture
+
+      - name: Ruff lint (includes C901 complexity)
+        run: ruff check .
+      - name: Ruff format
+        run: ruff format --check .
+
+      - name: Dead code
+        run: vulture scripts tests --min-confidence 80
+
+      - name: Duplicate code
+        run: pylint --disable=all --enable=duplicate-code --min-similarity-lines=6 scripts tests
+
+      # shellcheck is preinstalled on ubuntu-latest. bash -n only catches syntax
+      # errors; shellcheck catches quoting and portability bugs, which matter
+      # because the hook runs on macOS bash 3.2 as well.
+      - name: Shell lint
         run: |
           bash -n hooks/humanize-post-write.sh scripts/install.sh
-          python -m json.tool .claude-plugin/plugin.json > /dev/null
-          python -m json.tool .claude-plugin/marketplace.json > /dev/null
-          python -m json.tool hooks/hooks.json > /dev/null
+          shellcheck hooks/humanize-post-write.sh scripts/install.sh
+
+  package:
+    name: wheel installs and console scripts run
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - run: pip install build
+
+      - name: Build wheel
+        run: python -m build --wheel
+
+      # Guards the entry points: they referenced modules the wheel did not ship
+      # until v1.1.1, so `humanize-score` died with ModuleNotFoundError on install.
+      - name: Install the wheel into a clean venv and run both scripts
+        run: |
+          python -m venv /tmp/venv
+          /tmp/venv/bin/pip install --quiet dist/*.whl
+          printf 'Studies show that this delves into the intricate landscape.\n' > /tmp/smoke.md
+          /tmp/venv/bin/humanize-score /tmp/smoke.md || true
+          /tmp/venv/bin/burstiness-check /tmp/smoke.md || true
+          /tmp/venv/bin/humanize-score --help > /dev/null
+          /tmp/venv/bin/burstiness-check --help > /dev/null
