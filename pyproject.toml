@@ -1,7 +1,7 @@
 [project]
-name = "humanize"
+name = "humanize-anti-slop"
 # Keep version in sync with .claude-plugin/plugin.json and SKILL.md metadata.version.
-version = "1.1.0"
+version = "1.1.1"
 description = "Anti-slop framework for Claude Code: skill + scorer + agent + hook. Domain-aware AI-writing pattern detection. Extends blader/humanizer."
 authors = [
     {name = "Kimal Honour Djam", email = "kimhons@gmail.com"},
@@ -35,20 +35,42 @@ Issues = "https://github.com/kimhons/humanize/issues"
 Documentation = "https://github.com/kimhons/humanize/blob/main/README.md"
 
 [project.scripts]
-humanize-score = "humanize_score:main"
-burstiness-check = "burstiness_check:main"
+humanize-score = "humanize_anti_slop.humanize_score:main"
+burstiness-check = "humanize_anti_slop.burstiness_check:main"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
+# The repo dir stays "scripts/" (the skill, hook, and install.sh reference it by
+# path); the wheel ships it as the importable "humanize_anti_slop" package.
 packages = ["scripts"]
+sources = { "scripts" = "humanize_anti_slop" }
+exclude = ["scripts/install.sh"]
+# Editable installs cannot follow a prefix-changing "sources" rewrite, so dev mode
+# just puts the repo root on sys.path. Tests load the modules by file path anyway.
+dev-mode-dirs = ["."]
 
 [tool.ruff]
 target-version = "py39"
 line-length = 100
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "N", "UP", "B", "SIM"]
+# C90 = mccabe complexity. The codebase tops out at 8 (score_text); 10 leaves
+# headroom while still catching a function that grows a new decision tree.
+select = ["E", "F", "I", "N", "UP", "B", "SIM", "C90"]
 ignore = ["E501"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.coverage.run]
+source = ["scripts"]
+
+[tool.coverage.report]
+exclude_also = ["if __name__ == .__main__.:"]

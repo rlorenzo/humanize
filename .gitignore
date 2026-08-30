@@ -25,3 +25,6 @@ htmlcov/
 # Local
 *.local
 .env
+
+# uv (CI installs with pip; lock is not part of the contract)
+uv.lock
