@@ -14,6 +14,7 @@ Usage:
    python humanize_score.py FILE.md
    python humanize_score.py --profile=academic FILE.md
    python humanize_score.py --json FILE.md > result.json
+   echo '{"tool_input":{"file_path":"FILE.md"}}' | python humanize_score.py --hook
 
 Profile detection (auto unless --profile= is given):
    MANUSCRIPT*.md, *thesis*.md, *.tex     -> academic
@@ -26,12 +27,13 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
-# ---- Pattern definitions (38 patterns) ----------------------------------------
+# ---- Pattern definitions (44 patterns) ----------------------------------------
 
 # Each pattern: (id, name, regex, weight, profile_carveouts).
 # profile_carveouts maps profile -> multiplier (1.0 default; 0.0 disables; 0.5 reduces).
@@ -118,13 +120,16 @@ PATTERNS: list[Pattern] = [
         weight=1.5,
     ),
     # 7 AI vocabulary
+    # Figurative "gate/gated" is omitted: indistinguishable from technical usage
+    # (feature gates, gated APIs) in regex.
     Pattern(
         7,
         "ai_vocabulary",
         _re(
             r"\b(delve|delves|delving|tapestry|landscape|testament|underscore[sd]?|"
             r"intricate|intricacies|interplay|garner[sed]*|pivotal|aligns? with|"
-            r"foster(s|ed|ing)?|enduring|enhanc(e|ed|ing|es|ement)|valuable insights?)\b"
+            r"foster(s|ed|ing)?|enduring|enhanc(e|ed|ing|es|ement)|valuable insights?|"
+            r"crucial|quietly)\b"
         ),
         weight=1.0,
     ),
@@ -271,27 +276,90 @@ PATTERNS: list[Pattern] = [
         _re(
             r"\b(let[''']s (dive in|explore|break this down|walk through|take a look)|"
             r"here[''']s what you need to know|now let[''']s look at|"
-            r"without further ado)\b"
+            r"without further ado|heads up|quick note|before I forget|"
+            r"one thing that bit me)\b"
         ),
         weight=1.5,
     ),
     # 29 Fragmented headers — heuristic, computed separately
     Pattern(29, "fragmented_headers", _re(r"$^"), weight=0.0),  # placeholder
-    # ---- Extensions 30-38 (new) ----
-    # 30 Citation laundering
+    # ---- Patterns 30-35 (upstream) ----
+    # 30 Previous-version writing (docs describing the old implementation, not current behavior)
     Pattern(
         30,
+        "previous_version_writing",
+        _re(
+            r"\b(replac(es?|ed|ing) the (previous|old|earlier)|"
+            r"the (previous|earlier) (approach|version|implementation|method)|"
+            r"was (added|introduced|created) to replace)\b"
+        ),
+        weight=1.0,
+        profile_carveouts={"commit": 0.0},
+    ),
+    # 31 Forced punchlines (rows of dramatic short fragments)
+    Pattern(
+        31,
+        "forced_punchlines",
+        _re(r"[.!?]\s+(No|Not|Just|Gone)\b[^.!?\n]{0,28}[.!?]\s+(No|Not|Just|Gone)\b"),
+        weight=1.0,
+    ),
+    # 32 Formulaic sayings (pseudo-profound aphorisms)
+    Pattern(
+        32,
+        "formulaic_sayings",
+        _re(
+            r"\b(becomes? a trap|(is|are|was|were|becomes?) the (language|currency|architecture) of|"
+            r"not a tool but a mirror)\b"
+        ),
+        weight=1.0,
+    ),
+    # 33 Fake candid openers (staged candor at sentence start)
+    Pattern(
+        33,
+        "fake_candid_openers",
+        _re(
+            r"(?:^|[.!?]\s+|\n\s*)(Honestly\?|Look,|Here[''']s the thing|"
+            r"The thing is,|Let[''']s be honest|Real talk)"
+        ),
+        weight=1.2,
+    ),
+    # 34 Shadowboxing (answering objections no one raised)
+    Pattern(
+        34,
+        "shadowboxing",
+        _re(
+            r"\b(this isn[''']t (mainly|really) about|this is not (about|to say)|"
+            r"I[''']m not (saying|arguing)|don[''']t get me wrong|"
+            r"some might say[^.!?]{0,60}but)\b"
+        ),
+        weight=1.0,
+    ),
+    # 35 Fake alternatives (rejecting options no reader would consider)
+    Pattern(
+        35,
+        "fake_alternatives",
+        _re(
+            r"\b(a tempting (approach|option) would be|one might be tempted to|"
+            r"an obvious approach would be|it would be easy to just|"
+            r"you might think[^.!?]{0,60}but)\b"
+        ),
+        weight=1.0,
+    ),
+    # ---- Patterns 36-44 (this fork's extensions) ----
+    # 36 Citation laundering
+    Pattern(
+        36,
         "citation_laundering",
         _re(
-            r"\b(studies (have )?(shown|suggest|reported|indicate)|"
+            r"\b(studies (have )?(show|shows|shown|suggest|reported|indicate)|"
             r"research (suggests|indicates|has shown)|the literature (reports|suggests))\b(?![^.]*\d{4})"
         ),
         weight=2.0,
         profile_carveouts={"academic": 2.5, "commit": 0.0},
     ),
-    # 31 Manuscript boilerplate
+    # 37 Manuscript boilerplate
     Pattern(
-        31,
+        37,
         "manuscript_boilerplate",
         _re(
             r"\b(to the best of our knowledge|fills a critical gap|"
@@ -301,9 +369,9 @@ PATTERNS: list[Pattern] = [
         weight=2.5,
         profile_carveouts={"academic": 3.0, "blog": 1.5, "docs": 1.0, "commit": 0.0},
     ),
-    # 32 Tutorial-script scaffolding
+    # 38 Tutorial-script scaffolding
     Pattern(
-        32,
+        38,
         "tutorial_scaffolding",
         _re(
             r"\b(let[''']s walk through|let[''']s start with|here[''']s the high-level|"
@@ -311,26 +379,26 @@ PATTERNS: list[Pattern] = [
         ),
         weight=1.2,
     ),
-    # 33 Stat parade without effect size
+    # 39 Stat parade without effect size
     Pattern(
-        33,
+        39,
         "stat_parade",
         _re(r"\bp\s*[<>=]\s*0?\.\d+(?![^.]{0,80}(95\s*%|CI|Cohen|effect size|d\s*=))"),
         weight=1.5,
         profile_carveouts={"academic": 2.0, "blog": 0.5},
     ),
-    # 34 Temporal hedge ladders
+    # 40 Temporal hedge ladders
     Pattern(
-        34,
+        40,
         "temporal_hedges",
         _re(r"\b(currently|at present|at the time of writing|as of (now|today))\b"),
         weight=0.6,
     ),
-    # 35 Polysyndetic tripleting — count "X, Y, and Z" patterns per paragraph
-    Pattern(35, "polysyndetic_tripleting", _re(r"$^"), weight=0.0),  # computed separately
-    # 36 AI-flavoured commit verbs
+    # 41 Polysyndetic tripleting — count "X, Y, and Z" patterns per paragraph
+    Pattern(41, "polysyndetic_tripleting", _re(r"$^"), weight=0.0),  # computed separately
+    # 42 AI-flavoured commit verbs
     Pattern(
-        36,
+        42,
         "ai_commit_verbs",
         _re(
             r"^(feat|fix|chore|refactor|perf|docs|style|test)(\([^)]+\))?:\s+"
@@ -340,9 +408,9 @@ PATTERNS: list[Pattern] = [
         weight=2.0,
         profile_carveouts={"commit": 3.0, "academic": 0.0, "docs": 0.0, "blog": 0.0},
     ),
-    # 37 Methodology pseudo-precision
+    # 43 Methodology pseudo-precision
     Pattern(
-        37,
+        43,
         "methodology_pseudo",
         _re(
             r"\b(careful evaluation|rigorous analysis|comprehensive (study|review|analysis)|"
@@ -352,9 +420,9 @@ PATTERNS: list[Pattern] = [
         weight=2.0,
         profile_carveouts={"academic": 2.5, "commit": 0.0},
     ),
-    # 38 Dissertation-grade hedging
+    # 44 Dissertation-grade hedging
     Pattern(
-        38,
+        44,
         "dissertation_hedging",
         _re(
             r"\b(it can be argued that|one might (consider|suggest|argue)|"
@@ -437,7 +505,7 @@ def count_fragmented_headers(text: str) -> int:
 
 
 def count_polysyndetic_tripleting(text: str) -> int:
-    """#35. Count paragraphs with 3+ 'X, Y, and Z' patterns."""
+    """#41. Count paragraphs with 3+ 'X, Y, and Z' patterns."""
     count = 0
     for para in re.split(r"\n\s*\n", text):
         triplets = re.findall(r"\b\w+,\s*\w+,?\s*and\s+\w+\b", para)
@@ -524,6 +592,60 @@ def score_text(text: str, profile: str = "blog") -> dict:
     }
 
 
+# ---- PostToolUse hook mode ----------------------------------------------------
+
+PROSE_SUFFIXES = {".md", ".tex", ".rst", ".txt"}
+SKIP_PATH_PARTS = (".claude/", "/node_modules/", "/.git/")
+
+
+def run_hook() -> int:
+    """Read a Claude Code PostToolUse JSON payload from stdin, score the written
+    file if it is prose, and emit hookSpecificOutput.additionalContext JSON when
+    the score exceeds HUMANIZE_THRESHOLD (default 60).
+
+    Always exits 0: a scoring problem must never block a write.
+    """
+    try:
+        file_path = json.load(sys.stdin).get("tool_input", {}).get("file_path", "")
+        path = Path(file_path)
+        if (
+            not file_path
+            or path.suffix.lower() not in PROSE_SUFFIXES
+            or any(part in str(path).replace("\\", "/") for part in SKIP_PATH_PARTS)
+            or not path.is_file()
+        ):
+            return 0
+        try:
+            threshold = float(os.environ.get("HUMANIZE_THRESHOLD", "60"))
+        except ValueError:
+            threshold = 60.0
+        text = path.read_text(encoding="utf-8", errors="replace")
+        result = score_text(text, profile=detect_profile(path))
+        if result["score"] <= threshold:
+            return 0
+        offenders = ", ".join(
+            f"{o['pattern']} (weighted={o['weighted']})" for o in result["top_offenders"][:3]
+        )
+        context = (
+            f"[humanize] {file_path} scored {result['score']}/100 ({result['verdict']}), "
+            f"above threshold {threshold:g}. Top offenders: {offenders}. "
+            f"Consider rewriting with the humanize skill (/humanize {file_path})."
+        )
+        print(
+            json.dumps(
+                {
+                    "hookSpecificOutput": {
+                        "hookEventName": "PostToolUse",
+                        "additionalContext": context,
+                    }
+                }
+            )
+        )
+    except Exception:
+        pass
+    return 0
+
+
 # ---- CLI ----------------------------------------------------------------------
 
 
@@ -531,7 +653,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="Score a text file on AI-writing patterns. Lower score = more human."
     )
-    parser.add_argument("path", help="Path to text file (.md, .tex, .txt, ...)")
+    parser.add_argument("path", nargs="?", help="Path to text file (.md, .tex, .txt, ...)")
     parser.add_argument(
         "--profile",
         choices=["academic", "docs", "blog", "commit", "auto"],
@@ -545,7 +667,17 @@ def main(argv: list[str] | None = None) -> int:
         default=60.0,
         help="Exit non-zero if score exceeds threshold (default 60).",
     )
+    parser.add_argument(
+        "--hook",
+        action="store_true",
+        help="PostToolUse hook mode: read tool JSON from stdin, warn via hookSpecificOutput.",
+    )
     args = parser.parse_args(argv)
+
+    if args.hook:
+        return run_hook()
+    if not args.path:
+        parser.error("path is required unless --hook is given")
 
     path = Path(args.path)
     if not path.is_file():

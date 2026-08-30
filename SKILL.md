@@ -1,15 +1,17 @@
 ---
 name: humanize
-version: 1.0.0
 description: |
   Strip AI-writing patterns from text. Domain-aware (academic / docs / blog / commit).
-  38 patterns total — extends blader/humanizer's 29 with 9 new ones (citation laundering,
-  manuscript boilerplate, stat parade, methodology pseudo-precision, dissertation hedging,
-  AI-flavoured commit messages, et al.). Voice calibration from a sample. Final
-  "obviously AI generated" audit pass. Use when editing any prose file or before shipping.
+  44 patterns total — the 35 from blader/humanizer v2.11.2 plus 9 extensions (citation
+  laundering, manuscript boilerplate, stat parade, methodology pseudo-precision,
+  dissertation hedging, AI-flavoured commit messages, et al.). Voice calibration from a
+  sample. Final "obviously AI generated" audit pass. Use when editing any prose file or
+  before shipping.
 license: MIT
-compatibility: claude-code opencode
-extends: https://github.com/blader/humanizer (MIT)
+compatibility: Works with Claude Code and OpenCode. Scorer requires Python 3.9+.
+metadata:
+  version: "1.1.0"
+  extends: https://github.com/blader/humanizer (MIT, synced at v2.11.2)
 allowed-tools:
   - Read
   - Write
@@ -30,6 +32,12 @@ Auto-invoke whenever the user asks for editing, proofreading, "humanise", "make 
 
 Manual: `/humanize [text]` or `/humanize --profile=academic [text]` or `/humanize --voice=path/to/sample.md [text]`.
 
+## Core rules (apply to every rewrite)
+
+1. **Keep every claim.** You may shorten dull parts, expand useful parts, and merge or split paragraphs. Keep the information even when you change the structure.
+2. **Never invent facts.** Do not add a fact, name, number, date, quote, or citation unless it comes from the source or the user. If a sentence needs a missing detail, ask for it (AskUserQuestion) or use a simpler sentence. You may add an opinion or reaction when the writer's voice calls for one, never a factual claim. Fiction is exempt because invented details are part of the task.
+3. **Check for false positives before rewriting.** A matched phrase is a lead, not a verdict. See [False positives](#false-positives) below.
+
 ## Process (mandatory)
 
 1. **Detect domain profile.** Inspect file path / filename:
@@ -41,9 +49,9 @@ Manual: `/humanize [text]` or `/humanize --profile=academic [text]` or `/humaniz
 
 2. **Calibrate voice if sample provided.** Read sample first; note rhythm, vocabulary level, paragraph openings, punctuation habits, recurring phrases. Match in rewrite.
 
-3. **First-pass rewrite.** Apply the 38 patterns below, with profile-specific carve-outs.
+3. **First-pass rewrite.** Apply the 44 patterns below, with profile-specific carve-outs and the core rules above.
 
-4. **Self-audit.** Ask yourself: "What still makes this obviously AI-generated?" Answer in 3-5 bullets.
+4. **Self-audit.** Run the [Self-audit prompt](#self-audit-prompt-mandatory-step-4) below. Treat any unsupported addition or lost claim as an error.
 
 5. **Second-pass rewrite.** Apply the audit findings.
 
@@ -62,20 +70,21 @@ Manual: `/humanize [text]` or `/humanize --profile=academic [text]` or `/humaniz
 | Em-dash overuse (#14) | OK in moderation (≤1 per paragraph) | flagged | flagged | flagged |
 | Passive voice (#13) | OK in IMRaD methods sections only | flagged | flagged in active sections | flagged hard |
 | Rule of three (#10) | flagged | flagged | flagged | flagged |
-| Hedging (#24, #38) | report-grade hedging OK; dissertation-grade flagged | flagged with citations exempted | flagged hard | flagged hard |
+| Hedging (#24, #44) | report-grade hedging OK; dissertation-grade flagged | flagged with citations exempted | flagged hard | flagged hard |
 | Title case headings (#17) | follow journal style guide | sentence case | sentence case | sentence case |
-| Stat parade without effect size (#33) | flagged | flagged | n/a | n/a |
-| Citation laundering (#30) | flagged hard | flagged | flagged | n/a |
-| Manuscript boilerplate (#31) | flagged hard | n/a | n/a | n/a |
-| AI-flavoured commit verbs (#36) | n/a | n/a | n/a | flagged hard |
+| Previous-version writing (#30) | flagged | flagged | flagged | OK (commits describe change) |
+| Stat parade without effect size (#39) | flagged | flagged | n/a | n/a |
+| Citation laundering (#36) | flagged hard | flagged | flagged | n/a |
+| Manuscript boilerplate (#37) | flagged hard | n/a | n/a | n/a |
+| AI-flavoured commit verbs (#42) | n/a | n/a | n/a | flagged hard |
 
 ---
 
-## Pattern catalogue (38 patterns)
+## Pattern catalogue (44 patterns)
 
-### Patterns 1-29 — inherited from blader/humanizer (MIT, full attribution)
+### Patterns 1-35 — inherited from blader/humanizer (MIT, full attribution)
 
-The 29 base patterns are reproduced from [blader/humanizer](https://github.com/blader/humanizer) under MIT. They are organised across **content** (1-6), **language and grammar** (7-13), **style** (14-19, 26-29), **communication** (20-22), and **filler / hedging** (23-25). For full text + before/after examples on patterns 1-29 see `patterns/core.md` (or the blader repo).
+The 35 base patterns are reproduced from [blader/humanizer](https://github.com/blader/humanizer) v2.11.2 under MIT. For full text + before/after examples see [`patterns/core.md`](patterns/core.md).
 
 In summary form:
 
@@ -85,11 +94,11 @@ In summary form:
 4. Promotional language ("nestled in the heart of", "boasts", "vibrant")
 5. Vague attributions ("Experts believe", "Industry reports show")
 6. Formulaic challenges section ("Despite challenges... continues to thrive")
-7. Overused AI vocabulary (testament, landscape, tapestry, delve, intricate)
+7. Overused AI vocabulary (testament, landscape, tapestry, delve, intricate, crucial, quietly)
 8. Copula avoidance (serves as / functions as / stands as)
-9. Negative parallelisms (it's not just X, it's Y; tailing "..., no guessing")
+9. Negative parallelisms and clipped negative endings (it's not just X, it's Y; "..., no guessing")
 10. Rule of three (innovation, inspiration, and industry insights)
-11. Synonym cycling (protagonist / main character / central figure / hero)
+11. Synonym cycling and repeated sentence openings (protagonist / main character / hero; "She... She... She...")
 12. False ranges (from Big Bang to dark matter)
 13. Passive voice / subjectless fragments (no configuration file needed)
 14. Em-dash overuse — like this — and like this —
@@ -99,31 +108,39 @@ In summary form:
 18. Emojis as bullets / decorations (🚀 ✅ 💡)
 19. Curly quotation marks (Unicode ", ", ', ' replacing ASCII " and ')
 20. Chatbot artifacts ("Great question!", "I hope this helps!", "Let me know")
-21. Knowledge-cutoff disclaimers ("As of my last training update")
+21. Knowledge-cutoff disclaimers and speculative gap-fill ("As of my last training update", "likely grew up in...")
 22. Sycophantic / servile tone ("You're absolutely right!")
 23. Filler phrases ("In order to", "Due to the fact that", "At this point in time")
 24. Excessive hedging ("could potentially possibly", "might have some effect")
 25. Generic positive conclusions ("The future looks bright")
 26. Hyphenated word-pair overuse (cross-functional, data-driven, client-facing)
 27. Persuasive authority tropes ("At its core, what really matters is...")
-28. Signposting announcements ("Let's dive in", "Here's what you need to know")
+28. Signposting announcements, formal or casual ("Let's dive in", "heads up", "one thing that bit me")
 29. Fragmented headers (heading + one-sentence restatement of heading)
+30. Writing about the previous version ("replaces the previous approach of...")
+31. Forced punchlines and dramatic fragments ("No aesthetic prior. No nostalgia. The old rules were gone.")
+32. Formulaic sayings ("X is the language of Y", "efficiency becomes a trap")
+33. Fake-candid openings ("Honestly?", "Here's the thing", "Real talk")
+34. Answering objections no one raised ("I'm not saying...", "Don't get me wrong")
+35. Rejecting fake alternatives ("A tempting approach would be... but")
 
-### Patterns 30-38 — extensions (new in this skill)
+### Patterns 36-44 — extensions (new in this skill)
 
-#### 30. Citation laundering
+#### 36. Citation laundering
 
 **Problem:** "Studies show", "research suggests", "the literature reports" with no inline citation. Looks scholarly, says nothing.
 
 **Before:**
 > Studies show that nanoparticle radiosensitizers improve dose enhancement.
 
-**After:**
+**After (when the source or user supplies the citation):**
 > Hainfeld et al. (2004, doi:10.1088/0031-9155/49/18/N03) reported a 1.86× DEF for 1.9 nm gold nanoparticles at 250 kVp in EMT-6 tumours.
+
+**If no citation is available:** cut the claim or ask the user for the source (core rule 2). A fabricated reference is worse than the vague phrasing it replaces.
 
 **Profile rule:** flagged hard in `academic` and `docs`. In `blog` only flagged when no replacement is offered.
 
-#### 31. Manuscript boilerplate
+#### 37. Manuscript boilerplate
 
 **Problem:** Opening phrases that signal a draft AI generated to fill space.
 
@@ -137,7 +154,7 @@ In summary form:
 
 **Profile rule:** flagged hard in `academic`. n/a elsewhere.
 
-#### 32. Tutorial-script scaffolding (extension of #28)
+#### 38. Tutorial-script scaffolding (extension of #28)
 
 **Problem:** Walks the reader through what they're about to read instead of just writing it.
 
@@ -147,19 +164,19 @@ In summary form:
 **After:**
 > The pipeline has three stages: ingest, transform, score.
 
-#### 33. Stat parade without effect size
+#### 39. Stat parade without effect size
 
 **Problem:** P-values reported without effect size, CI, or interpretation. Frequentist hedging that says nothing about practical magnitude.
 
 **Before:**
 > The difference was statistically significant (p < 0.001).
 
-**After:**
+**After (with values from the source):**
 > The difference was 14 % (95 % BCa CI 9-19 %, p < 0.001 by paired t-test, n = 24, Cohen's d = 0.82).
 
 **Profile rule:** flagged hard in `academic`; flagged in `docs`.
 
-#### 34. Temporal hedge ladders
+#### 40. Temporal hedge ladders
 
 **Problem:** Stacked time-disclaimers cancel each other out.
 
@@ -169,7 +186,7 @@ In summary form:
 **After:**
 > The field changed substantially between 2020 and 2026.
 
-#### 35. Polysyndetic tripleting (extension of #10)
+#### 41. Polysyndetic tripleting (extension of #10)
 
 **Problem:** Same paragraph, three or more "X, Y, and Z" constructions.
 
@@ -179,7 +196,7 @@ In summary form:
 **After:**
 > The framework is fast and reproducible. Researchers and clinicians use it.
 
-#### 36. AI-flavoured commit-message verbs
+#### 42. AI-flavoured commit-message verbs
 
 **Problem:** Vague optimisation verbs in commit messages.
 
@@ -193,7 +210,7 @@ In summary form:
 
 **Profile rule:** flagged hard in `commit`. n/a elsewhere.
 
-#### 37. Methodology pseudo-precision
+#### 43. Methodology pseudo-precision
 
 **Problem:** Self-praising adjectives that describe how the work was done without saying what was done.
 
@@ -202,12 +219,12 @@ In summary form:
 **Before:**
 > A careful evaluation was performed using a comprehensive methodology.
 
-**After:**
+**After (stating what was actually done):**
 > We computed BCa intervals from B = 10 000 cluster bootstraps over biological replicates, with calibration covariance propagated per Paper 1.
 
 **Profile rule:** flagged hard in `academic`; flagged in `docs`.
 
-#### 38. Dissertation-grade hedging in places that demand a stance
+#### 44. Dissertation-grade hedging in places that demand a stance
 
 **Problem:** "It can be argued", "one might consider", "some would suggest" used to dodge a decision the writer is paid to make.
 
@@ -221,6 +238,21 @@ In summary form:
 
 ---
 
+## False positives
+
+A matched phrase is evidence, not proof. Do not rewrite:
+
+- Quoted material, titles, proper names, or text where a watched phrase is being *discussed* rather than used.
+- Formal vocabulary in general — only the specific watched words count, and mostly when they cluster.
+- Em dashes, curly quotes, or one short emphatic sentence in isolation; these count only stacked with other tells.
+- Deliberate repetition with rhythm ("She came. She saw. She conquered.").
+- Useful limits, scope statements, legal/safety notices, and real (named, answered) objections.
+- Clean human prose that happens to be polished. Sterile-but-human is not slop; check surrounding context before touching anything.
+
+Human details to **keep**: specific odd details, mixed feelings, era-bound references, deliberate first-person choices, varied sentence length, genuine asides and self-corrections. Full lists in [`patterns/core.md`](patterns/core.md#check-for-false-positives).
+
+When unsure, look for several patterns together, and prefer leaving a sentence alone over flattening a writer's voice.
+
 ## Voice calibration
 
 If the user provides `--voice=<file>` or pastes a sample inline:
@@ -232,7 +264,7 @@ If the user provides `--voice=<file>` or pastes a sample inline:
    - Punctuation habits (em-dashes, semicolons, parenthetical asides)
    - Recurring phrases / verbal tics
    - Transition style (explicit connectors vs juxtaposition)
-2. **Match the sample.** Replace AI patterns with constructions from the sample. If the writer uses short sentences, do not produce long ones; if they use "stuff" do not promote to "elements."
+2. **Match the sample.** Replace AI patterns with constructions from the sample. If the writer uses short sentences, do not produce long ones; if they use "stuff" do not promote to "elements." A writing sample takes priority over the style rules here: if the sample uses em dashes, keep them at about the same rate rather than applying #14 as a ban.
 3. **No sample → use defaults below.**
 
 ### Default voice (when no sample provided)
@@ -245,7 +277,7 @@ If the user provides `--voice=<file>` or pastes a sample inline:
 
 ## Self-audit prompt (mandatory step 4)
 
-After the first-pass rewrite, ask yourself, exactly: **"What makes this still obviously AI-generated?"**
+After the first-pass rewrite, ask yourself, exactly: **"What makes this still obviously AI-generated?"** and **"Did the rewrite add or remove any fact, name, number, date, quote, or citation?"**
 
 Answer in 3-5 bullets. Likely tells:
 - Rhythm too even (every sentence ~15 words)
@@ -288,7 +320,7 @@ top offenders: [pattern A, pattern B, pattern C]
 
 ## Reference
 
-- [blader/humanizer](https://github.com/blader/humanizer) — MIT, the foundation
-- [Wikipedia: Signs of AI writing](https://en.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing) — primary source for patterns 1-29
+- [blader/humanizer](https://github.com/blader/humanizer) — MIT, the foundation (synced at v2.11.2, 35 patterns)
+- [Wikipedia: Signs of AI writing](https://en.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing) — primary source for patterns 1-35
 - [WikiProject AI Cleanup](https://en.wikipedia.org/wiki/Wikipedia:WikiProject_AI_Cleanup) — maintaining organisation
-- Patterns 30-38 contributed by Kimal H. Djam (kimhons), 2026
+- Patterns 36-44 contributed by Kimal H. Djam (kimhons), 2026
