@@ -11,7 +11,7 @@ from pathlib import Path
 import pytest
 
 REPO = Path(__file__).resolve().parent.parent
-CHECKER = REPO / "scripts" / "burstiness_check.py"
+CHECKER = REPO / "humanize_anti_slop" / "burstiness_check.py"
 
 spec = importlib.util.spec_from_file_location("burstiness_check", CHECKER)
 bc = importlib.util.module_from_spec(spec)

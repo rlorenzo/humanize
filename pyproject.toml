@@ -43,14 +43,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-# The repo dir stays "scripts/" (the skill, hook, and install.sh reference it by
-# path); the wheel ships it as the importable "humanize_anti_slop" package.
-packages = ["scripts"]
-sources = { "scripts" = "humanize_anti_slop" }
-exclude = ["scripts/install.sh"]
-# Editable installs cannot follow a prefix-changing "sources" rewrite, so dev mode
-# just puts the repo root on sys.path. Tests load the modules by file path anyway.
-dev-mode-dirs = ["."]
+packages = ["humanize_anti_slop"]
 
 [tool.ruff]
 target-version = "py39"
@@ -70,7 +63,7 @@ testpaths = ["tests"]
 addopts = "-q"
 
 [tool.coverage.run]
-source = ["scripts"]
+source = ["humanize_anti_slop"]
 
 [tool.coverage.report]
 exclude_also = ["if __name__ == .__main__.:"]

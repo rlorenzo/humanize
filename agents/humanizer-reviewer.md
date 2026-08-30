@@ -26,7 +26,7 @@ User-invokable:
    - `README.md`, anything in `docs/` or `STAGE3/` → `docs`
    - `*.commit` or COMMIT_EDITMSG → `commit`
    - else → `blog`
-3. **Run the scorer** if available: `python3 <scorer> --json --profile=<profile> <file>` and parse the JSON. Look for the scorer in this order: `scripts/humanize_score.py` in the working repo, then `~/.claude/skills/humanize/scripts/humanize_score.py`, then a plugin copy (glob `~/.claude/plugins/*/humanize*/scripts/humanize_score.py`). If none exists, skip scoring and review by the pattern catalogue alone.
+3. **Run the scorer** if available: `python3 <scorer> --json --profile=<profile> <file>` and parse the JSON. Look for the scorer in this order: `humanize_anti_slop/humanize_score.py` then `scripts/humanize_score.py` in the working repo, then `~/.claude/skills/humanize/scripts/humanize_score.py`, then a plugin copy (glob `~/.claude/plugins/*/humanize*/{humanize_anti_slop,scripts}/humanize_score.py`). If none exists, skip scoring and review by the pattern catalogue alone.
 4. **For each top offender**, locate examples in the text using Grep.
 5. **Rewrite** the offending passages, preserving meaning, citations, and any quoted material.
 6. **Self-audit:** ask "What still makes this obviously AI-generated?" and "Did the rewrite add or remove any fact, name, number, date, quote, or citation?" Answer in 3-5 bullets, then revise.

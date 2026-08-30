@@ -21,7 +21,10 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # layout), then the copy install.sh places under ~/.claude/skills.
 if [[ -n "${HUMANIZE_SCORER:-}" ]]; then
     SCORER="$HUMANIZE_SCORER"
+elif [[ -f "$SCRIPT_DIR/../humanize_anti_slop/humanize_score.py" ]]; then
+    SCORER="$SCRIPT_DIR/../humanize_anti_slop/humanize_score.py"
 elif [[ -f "$SCRIPT_DIR/../scripts/humanize_score.py" ]]; then
+    # Pre-1.1.1 repo/plugin layout.
     SCORER="$SCRIPT_DIR/../scripts/humanize_score.py"
 else
     SCORER="$HOME/.claude/skills/humanize/scripts/humanize_score.py"

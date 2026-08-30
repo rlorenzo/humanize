@@ -13,7 +13,7 @@ from pathlib import Path
 import pytest
 
 REPO = Path(__file__).resolve().parent.parent
-SCORER = REPO / "scripts" / "humanize_score.py"
+SCORER = REPO / "humanize_anti_slop" / "humanize_score.py"
 HOOK = REPO / "hooks" / "humanize-post-write.sh"
 
 spec = importlib.util.spec_from_file_location("humanize_score", SCORER)

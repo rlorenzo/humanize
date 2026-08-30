@@ -56,16 +56,17 @@ def test_hook_manifest_points_at_a_script_that_exists():
 @pytest.mark.parametrize("script", ["humanize_score.py", "burstiness_check.py"])
 def test_install_script_ships_every_scorer(script):
     # A scorer the installer forgets is a scorer no user ever runs.
-    assert script in (REPO / "scripts" / "install.sh").read_text()
+    assert script in (REPO / "install.sh").read_text()
 
 
 @pytest.mark.parametrize(
     "relative",
     [
         "hooks/humanize-post-write.sh",
-        "scripts/install.sh",
-        "scripts/humanize_score.py",
-        "scripts/burstiness_check.py",
+        "install.sh",
+        ".github/smoke-console-scripts.sh",
+        "humanize_anti_slop/humanize_score.py",
+        "humanize_anti_slop/burstiness_check.py",
     ],
 )
 def test_shebanged_files_are_executable(relative):

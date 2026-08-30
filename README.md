@@ -47,7 +47,7 @@ New extensions (#36-44):
 ```
 
 The plugin registers the skill, the `humanizer-reviewer` subagent, and the PostToolUse
-hook automatically. To add the optional always-on rule, run `scripts/install.sh` too.
+hook automatically. To add the optional always-on rule, run `install.sh` too.
 
 ## Install (Claude Code, file-based)
 
@@ -58,7 +58,7 @@ git clone https://github.com/kimhons/humanize.git ~/.claude/skills/humanize
 cp ~/.claude/skills/humanize/agents/humanizer-reviewer.md ~/.claude/agents/
 # Install skill + rule, then wire the hook into settings.json (copy the
 # PostToolUse entry from hooks/hooks.json, adjusting the script path)
-bash ~/.claude/skills/humanize/scripts/install.sh
+bash ~/.claude/skills/humanize/install.sh
 ```
 
 For OpenCode users:
