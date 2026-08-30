@@ -30,7 +30,10 @@ else
     SCORER="$HOME/.claude/skills/humanize/scripts/humanize_score.py"
 fi
 
-[[ -f "$SCORER" ]] || exit 0
+if [[ ! -f "$SCORER" ]]; then
+    [[ -n "${HUMANIZE_DEBUG:-}" ]] && echo "[humanize:debug] no scorer found at $SCORER" >&2
+    exit 0
+fi
 
 # Cheap pre-filter: skip the python launch unless the payload plausibly names a
 # prose file. Case-insensitive to match run_hook()'s suffix handling; tr keeps
@@ -39,8 +42,18 @@ fi
 INPUT=$(cat)
 case "$(printf '%s' "$INPUT" | tr '[:upper:]' '[:lower:]')" in
     *.md\"*|*.tex\"*|*.rst\"*|*.txt\"*) : ;;
-    *) exit 0 ;;
+    *)
+        [[ -n "${HUMANIZE_DEBUG:-}" ]] && echo "[humanize:debug] payload names no prose file" >&2
+        exit 0
+        ;;
 esac
 
-printf '%s' "$INPUT" | python3 "$SCORER" --hook 2>/dev/null
+# stderr is normally discarded so a scoring problem can never reach the
+# transcript. Under HUMANIZE_DEBUG it is let through instead, which is the only
+# way to tell a working hook from a silently broken one.
+if [[ -n "${HUMANIZE_DEBUG:-}" ]]; then
+    printf '%s' "$INPUT" | python3 "$SCORER" --hook
+else
+    printf '%s' "$INPUT" | python3 "$SCORER" --hook 2>/dev/null
+fi
 exit 0

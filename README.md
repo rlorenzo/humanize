@@ -142,7 +142,16 @@ Both scorers are pure Python with **zero dependencies** and run on 3.9+.
 
 ### Hooked into commit time
 
-The hook auto-fires after any `.md` / `.tex` Edit/Write, prints a warning when score > 60. Threshold tunable via `HUMANIZE_THRESHOLD=70` in your shell.
+The hook auto-fires after any `.md` / `.tex` Edit/Write and warns when the score exceeds 60. Tune with `HUMANIZE_THRESHOLD=70` in your shell.
+
+It stays silent otherwise, including when it fails — a scoring bug must never block a write. That silence hid a real bug once, so set `HUMANIZE_DEBUG=1` to see on stderr what it decided and why:
+
+```bash
+$ HUMANIZE_DEBUG=1 echo '{"tool_input":{"file_path":"draft.md"}}' | ~/.claude/hooks/humanize-post-write.sh
+[humanize:debug] draft.md scored 12.0 at or under threshold 60
+```
+
+Files over 2 MB are skipped. The hook runs on every write, and a 9 MB file took 6.7 s to score; a prose draft is not 2 MB.
 
 ### Subagent for deep review
 

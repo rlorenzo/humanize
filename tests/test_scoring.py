@@ -189,3 +189,93 @@ def test_bash_hook_end_to_end(tmp_path, filename):
     )
     assert proc.returncode == 0
     assert "additionalContext" in json.loads(proc.stdout)["hookSpecificOutput"]
+
+
+# ---- Hook guardrails: size cap and the debug channel ---------------------------
+
+
+def test_hook_skips_files_over_the_size_cap(tmp_path):
+    # The hook runs on every write, so cost is paid interactively: ~6.7s on a 9MB
+    # file before the cap existed.
+    big = tmp_path / "big.md"
+    big.write_text("Studies show that this delves into the intricate landscape. " * 40000)
+    assert big.stat().st_size > hs.MAX_HOOK_BYTES
+    reason = hs.hook_skip_reason(big, str(big))
+    assert reason is not None and "MAX_HOOK_BYTES" in reason
+    # And it stays silent rather than warning about a file it never scored.
+    assert run_hook_mode(hook_payload(big)).stdout.strip() == ""
+
+
+def test_hook_scores_a_file_just_under_the_cap(tmp_path):
+    small = tmp_path / "small.md"
+    small.write_text("Studies show that this delves into the intricate landscape.\n")
+    assert small.stat().st_size < hs.MAX_HOOK_BYTES
+    assert hs.hook_skip_reason(small, str(small)) is None
+
+
+@pytest.mark.parametrize(
+    ("filename", "expected"),
+    [
+        ("notes.py", "not prose"),
+        ("missing.md", "not an existing file"),
+    ],
+)
+def test_hook_skip_reason_explains_itself(tmp_path, filename, expected):
+    assert expected in hs.hook_skip_reason(tmp_path / filename, str(tmp_path / filename))
+
+
+def test_hook_skip_reason_rejects_an_empty_payload_path():
+    assert "no tool_input.file_path" in hs.hook_skip_reason(Path(""), "")
+
+
+def test_debug_is_silent_unless_enabled(capsys, monkeypatch):
+    monkeypatch.delenv("HUMANIZE_DEBUG", raising=False)
+    hs.debug("should not appear")
+    assert capsys.readouterr().err == ""
+
+    monkeypatch.setenv("HUMANIZE_DEBUG", "1")
+    hs.debug("should appear")
+    err = capsys.readouterr().err
+    assert "should appear" in err and "[humanize:debug]" in err
+
+
+def test_debug_output_goes_to_stderr_not_the_json_contract(tmp_path):
+    # stdout carries the hook JSON; anything printed there would corrupt it.
+    f = tmp_path / "draft.md"
+    f.write_text(SLOP)
+    proc = run_hook_mode(hook_payload(f), {"HUMANIZE_DEBUG": "1"})
+    json.loads(proc.stdout)  # raises if debug text leaked into stdout
+
+
+def test_debug_reports_why_a_clean_file_produced_no_warning(tmp_path):
+    f = tmp_path / "draft.md"
+    f.write_text("I rewrote the parser last night, and it works.\n")
+    proc = run_hook_mode(hook_payload(f), {"HUMANIZE_DEBUG": "1"})
+    assert proc.stdout.strip() == ""
+    assert "at or under threshold" in proc.stderr
+
+
+def test_bash_hook_passes_debug_through_but_swallows_it_otherwise(tmp_path):
+    # The wrapper sends stderr to /dev/null normally; a silently broken scorer is
+    # exactly how this project's hook bug went unnoticed for months.
+    f = tmp_path / "draft.md"
+    f.write_text(SLOP)
+    broken = tmp_path / "broken_scorer.py"
+    broken.write_text("this is not valid python (\n")
+
+    env = {**os.environ, "HUMANIZE_SCORER": str(broken)}
+    quiet = subprocess.run(
+        ["bash", str(HOOK)], input=hook_payload(f), capture_output=True, text=True, env=env
+    )
+    assert quiet.returncode == 0
+    assert quiet.stdout.strip() == "" and quiet.stderr.strip() == ""
+
+    loud = subprocess.run(
+        ["bash", str(HOOK)],
+        input=hook_payload(f),
+        capture_output=True,
+        text=True,
+        env={**env, "HUMANIZE_DEBUG": "1"},
+    )
+    assert loud.returncode == 0
+    assert "SyntaxError" in loud.stderr

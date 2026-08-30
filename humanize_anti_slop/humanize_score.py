@@ -597,23 +597,54 @@ def score_text(text: str, profile: str = "blog") -> dict:
 PROSE_SUFFIXES = {".md", ".tex", ".rst", ".txt"}
 SKIP_PATH_PARTS = (".claude/", "/node_modules/", "/.git/")
 
+# The hook runs on every Write/Edit, so scoring cost is paid interactively.
+# Measured: ~180 ms of interpreter startup regardless of size, 760 ms at 1 MB,
+# 6.7 s at 9 MB. A prose draft is not 2 MB; something that big is generated or
+# vendored, and making every write wait on it is worse than not scoring it.
+MAX_HOOK_BYTES = 2_000_000
+
+
+def debug(message: str) -> None:
+    """Diagnostics for hook mode, off unless HUMANIZE_DEBUG is set.
+
+    Goes to stderr so it can never corrupt the JSON contract on stdout.
+    """
+    if os.environ.get("HUMANIZE_DEBUG"):
+        print(f"[humanize:debug] {message}", file=sys.stderr)
+
+
+def hook_skip_reason(path: Path, file_path: str) -> str | None:
+    """Why this payload should not be scored, or None to go ahead."""
+    if not file_path:
+        return "payload has no tool_input.file_path"
+    if path.suffix.lower() not in PROSE_SUFFIXES:
+        return f"suffix {path.suffix!r} is not prose {sorted(PROSE_SUFFIXES)}"
+    if any(part in str(path).replace("\\", "/") for part in SKIP_PATH_PARTS):
+        return f"path matches an excluded part {SKIP_PATH_PARTS}"
+    if not path.is_file():
+        return "path is not an existing file"
+    size = path.stat().st_size
+    if size > MAX_HOOK_BYTES:
+        return f"{size} bytes exceeds MAX_HOOK_BYTES ({MAX_HOOK_BYTES})"
+    return None
+
 
 def run_hook() -> int:
     """Read a Claude Code PostToolUse JSON payload from stdin, score the written
     file if it is prose, and emit hookSpecificOutput.additionalContext JSON when
     the score exceeds HUMANIZE_THRESHOLD (default 60).
 
-    Always exits 0: a scoring problem must never block a write.
+    Always exits 0: a scoring problem must never block a write. That silence is
+    deliberate but it hid a real bug once -- the hook emitted a format Claude
+    never read and went unnoticed for months -- so set HUMANIZE_DEBUG=1 to see
+    on stderr what it decided and why.
     """
     try:
         file_path = json.load(sys.stdin).get("tool_input", {}).get("file_path", "")
         path = Path(file_path)
-        if (
-            not file_path
-            or path.suffix.lower() not in PROSE_SUFFIXES
-            or any(part in str(path).replace("\\", "/") for part in SKIP_PATH_PARTS)
-            or not path.is_file()
-        ):
+        skip = hook_skip_reason(path, file_path)
+        if skip:
+            debug(f"skipped {file_path!r}: {skip}")
             return 0
         try:
             threshold = float(os.environ.get("HUMANIZE_THRESHOLD", "60"))
@@ -622,6 +653,7 @@ def run_hook() -> int:
         text = path.read_text(encoding="utf-8", errors="replace")
         result = score_text(text, profile=detect_profile(path))
         if result["score"] <= threshold:
+            debug(f"{file_path} scored {result['score']} at or under threshold {threshold:g}")
             return 0
         offenders = ", ".join(
             f"{o['pattern']} (weighted={o['weighted']})" for o in result["top_offenders"][:3]
@@ -641,8 +673,8 @@ def run_hook() -> int:
                 }
             )
         )
-    except Exception:
-        pass
+    except Exception as exc:  # noqa: BLE001 - a scoring bug must never block a write
+        debug(f"{type(exc).__name__}: {exc}")
     return 0
 
 
