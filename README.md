@@ -203,6 +203,11 @@ This work would not exist without:
 - [Wikipedia: Signs of AI writing](https://en.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing) — pattern catalog
 - [WikiProject AI Cleanup](https://en.wikipedia.org/wiki/Wikipedia:WikiProject_AI_Cleanup) — maintains the source
 
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md). Releases are tagged `vMAJOR.MINOR.PATCH`; a
+marketplace or clone install can pin to a tag.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).

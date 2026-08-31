@@ -1,7 +1,7 @@
 {
   "name": "humanize",
   "displayName": "Humanize",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "description": "Anti-slop framework: humanize skill, reviewer subagent, and a PostToolUse scoring hook. Extends blader/humanizer.",
   "author": {
     "name": "Kimal Honour Djam",
