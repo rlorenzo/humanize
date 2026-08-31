@@ -8,6 +8,12 @@
 
 ## 1. State of the AI-detector landscape (2026)
 
+> **These figures were gathered on 2026-04-27 and have not been re-verified since.**
+> Detector accuracy moves quickly, and vendor-stated false-positive rates move for
+> reasons other than accuracy. Treat the table as the shape of the landscape — some
+> detectors defeat perplexity-and-burstiness editing, most do not — rather than as
+> current numbers. Re-check before citing any specific figure.
+
 | Detector | Approach | Stated FPR | Real-world FPR (native EN) | Real-world FPR (ESL) | Survival after 3× humanizer |
 |---|---|---|---|---|---|
 | GPTZero | Perplexity + burstiness + ML classifier | 0.24 % | 3 % | **18 %** | 18 % detection |

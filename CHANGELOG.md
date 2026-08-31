@@ -13,6 +13,19 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- The scorer's human-readable output carries a `scope:` line naming what the number
+  does *not* mean: it counts the 44 patterns in this catalogue, which is a claim
+  about writing quality, not a prediction about any AI detector. Previously a user
+  reading `humanize_score: 8.7/100 (clean)` had nothing telling them that
+  `DETECTION_ROBUSTNESS.md` argues a classifier trained on model phrase
+  distributions is a different question entirely. Deliberately absent from `--json`,
+  which stays a data contract — machines do not misread a verdict.
+- A "What the score does not mean" section in the README, and a staleness marker on
+  the detector table in `DETECTION_ROBUSTNESS.md`, whose figures were gathered
+  2026-04-27 and have not been re-verified.
+
 ### Fixed
 
 - **`count_fragmented_headers` (#29) detected the opposite of what it documented.**

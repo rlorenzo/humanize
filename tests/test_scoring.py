@@ -121,6 +121,32 @@ def test_cli_json_and_threshold_exit_codes(tmp_path, capsys):
     assert hs.main(["--json", "--threshold=10", str(f)]) == 1
 
 
+def test_cli_prints_what_the_score_does_not_mean(tmp_path, capsys):
+    """A "clean" verdict must not read as a detection-evasion guarantee.
+
+    The scope line is the only thing standing between "humanize_score: 8.7/100
+    (clean)" and a user concluding the text will pass a classifier. It points at
+    DETECTION_ROBUSTNESS.md, which argues the opposite.
+    """
+    f = tmp_path / "clean.md"
+    f.write_text("The cat sat. Rain fell all afternoon, and nobody minded.", encoding="utf-8")
+    assert hs.main([str(f)]) == 0
+    out = capsys.readouterr().out
+    assert "scope:" in out
+    assert "DETECTION_ROBUSTNESS.md" in out
+    assert "not detector evasion" in out
+
+
+def test_json_output_carries_no_scope_line(tmp_path, capsys):
+    """Machines do not misread a verdict; people do. --json stays a data contract."""
+    f = tmp_path / "clean.md"
+    f.write_text("The cat sat. Rain fell all afternoon, and nobody minded.", encoding="utf-8")
+    assert hs.main(["--json", str(f)]) == 0
+    raw = capsys.readouterr().out
+    assert "DETECTION_ROBUSTNESS.md" not in raw
+    assert "scope" not in json.loads(raw)
+
+
 def run_hook_mode(payload: str, env_extra: dict | None = None) -> subprocess.CompletedProcess:
     env = {**os.environ, **(env_extra or {})}
     return subprocess.run(
