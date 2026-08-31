@@ -28,3 +28,6 @@ htmlcov/
 
 # uv (CI installs with pip; lock is not part of the contract)
 uv.lock
+
+# review-pr skill scratch (per-PR ignored-comment list)
+.review-pr-ignored-*
