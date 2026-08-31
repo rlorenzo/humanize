@@ -479,8 +479,13 @@ def count_title_case_headings(text: str) -> int:
 
 
 def _content_words(text: str) -> set[str]:
-    """Lowercased words of 4+ characters, singularised crudely, for overlap tests."""
-    return {w.rstrip("s") for w in re.findall(r"[A-Za-z]+", text.lower()) if len(w) > 3}
+    """Lowercased words of 4+ characters, singularised crudely, for overlap tests.
+
+    removesuffix, not rstrip: rstrip("s") strips every trailing s, turning "boss"
+    into "bo" and "class" into "cla", which is over-stripping rather than
+    singularising and gives short tokens more chances to collide.
+    """
+    return {w.removesuffix("s") for w in re.findall(r"[A-Za-z]+", text.lower()) if len(w) > 3}
 
 
 def count_fragmented_headers(text: str) -> int:

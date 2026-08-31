@@ -251,3 +251,13 @@ def test_fragmented_header_residual_false_positives():
     """
     assert hs.count_fragmented_headers("## License\n\nMIT — see [LICENSE](LICENSE).\n") == 1
     assert hs.count_fragmented_headers("## Commit verbs\n\n**Problem:** Vague commit verbs.\n") == 1
+
+
+def test_content_words_strips_only_one_trailing_s():
+    """Regression: rstrip("s") stripped every trailing s, not the plural one.
+
+    "boss" became "bo" and "class" became "cla" -- over-stripping, not
+    singularising, and short tokens collide more easily.
+    """
+    assert hs._content_words("boss class analysis") == {"bos", "clas", "analysi"}
+    assert hs._content_words("tests") == {"test"}
