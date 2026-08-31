@@ -478,37 +478,103 @@ def count_title_case_headings(text: str) -> int:
     return count
 
 
+def _content_words(text: str) -> set[str]:
+    """Lowercased words of 4+ characters, singularised crudely, for overlap tests."""
+    return {w.rstrip("s") for w in re.findall(r"[A-Za-z]+", text.lower()) if len(w) > 3}
+
+
 def count_fragmented_headers(text: str) -> int:
-    """#29. Heading followed by a one-sentence paragraph that restates the heading."""
+    """#29. Heading followed by a short standalone line that restates the heading.
+
+    Three conditions, all required: the line after the heading is short (<= 8
+    words), it stands alone as its own paragraph, and it restates the heading
+    rather than saying something new.
+
+    The restatement test is what makes this pattern #29 rather than "heading
+    followed by a short line": at least half the heading's content words have to
+    reappear. A heading followed by a genuinely short sentence that introduces
+    new material is normal prose and must not fire.
+    """
     count = 0
     lines = text.splitlines()
     for i, line in enumerate(lines):
-        if not re.match(r"^\s*#{1,6}\s+\w", line):
+        heading = re.match(r"^\s*#{1,6}\s+(\w.*)$", line)
+        if not heading:
             continue
-        # Find the next non-empty line
         j = i + 1
         while j < len(lines) and not lines[j].strip():
             j += 1
         if j >= len(lines):
             continue
         next_line = lines[j].strip()
-        if (
-            next_line
-            and not next_line.startswith("#")
-            and len(next_line.split()) <= 8
-            and j + 1 < len(lines)
-            and lines[j + 1].strip()
-        ):
-            # next-next line is also content -> next_line is a fragment intro
+        if next_line.startswith("#") or len(next_line.split()) > 8:
+            continue
+        # The line must be its own paragraph: blank line or end of file after it.
+        if j + 1 < len(lines) and lines[j + 1].strip():
+            continue
+        heading_words = _content_words(heading.group(1))
+        if not heading_words:
+            continue
+        echoed = heading_words & _content_words(next_line)
+        if len(echoed) / len(heading_words) >= 0.5:
             count += 1
     return count
 
 
+# Parenthetical and conjunctive adverbs. As the middle element of "X, Y, and Z"
+# these signal an aside ("it was done, however, and then we moved on"), not a
+# triplet, and the surface punctuation is identical either way.
+_PARENTHETICAL_ADVERBS = frozenset(
+    [
+        "however",
+        "though",
+        "therefore",
+        "thus",
+        "moreover",
+        "indeed",
+        "again",
+        "instead",
+        "meanwhile",
+        "nevertheless",
+        "nonetheless",
+        "furthermore",
+        "also",
+        "perhaps",
+        "finally",
+        "yes",
+        "no",
+        "then",
+        "besides",
+        "otherwise",
+    ]
+)
+
+# An item in a triplet: a bare noun, optionally preceded by a determiner or
+# possessive. "the tests" and "their docs" are items; arbitrary clauses are not,
+# which is what keeps "the code, then we shipped and moved on" from matching.
+_TRIPLET_ITEM = r"(?:(?:the|a|an|its|his|her|their|our|your|my|this|that|these|those)\s+)?[\w']+"
+
+_TRIPLET_RE = re.compile(
+    rf"\b({_TRIPLET_ITEM}),\s*({_TRIPLET_ITEM}),?\s+and\s+({_TRIPLET_ITEM})\b",
+    re.I,
+)
+
+
 def count_polysyndetic_tripleting(text: str) -> int:
-    """#41. Count paragraphs with 3+ 'X, Y, and Z' patterns."""
+    """#41. Count paragraphs with 3+ 'X, Y, and Z' patterns.
+
+    Items may carry a determiner, so "the code, the tests, and the docs" counts.
+    An earlier version matched only bare single words, which missed most real
+    triplets in ordinary prose -- the failure mode of a detector nobody had run
+    against text with a known answer.
+    """
     count = 0
     for para in re.split(r"\n\s*\n", text):
-        triplets = re.findall(r"\b\w+,\s*\w+,?\s*and\s+\w+\b", para)
+        triplets = [
+            m
+            for m in _TRIPLET_RE.findall(para)
+            if m[1].split()[-1].lower() not in _PARENTHETICAL_ADVERBS
+        ]
         if len(triplets) >= 3:
             count += 1
     return count

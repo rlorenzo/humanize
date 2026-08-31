@@ -23,7 +23,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - run: pip install pytest pytest-cov
       - name: Test with coverage floor
-        run: python -m pytest --cov --cov-report=term-missing --cov-fail-under=80
+        run: python -m pytest --cov --cov-report=term-missing --cov-fail-under=85
 
   lint:
     name: lint and static analysis
