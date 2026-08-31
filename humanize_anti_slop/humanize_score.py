@@ -8,6 +8,14 @@ Lower score = more human. Threshold convention:
    40-60  obvious patterns, needs editing
    60-100 heavy slop, rewrite
 
+WHAT THE SCORE DOES NOT MEAN: it is a weighted rate of the 44 patterns in this
+catalogue, per 100 words, not a raw count of hits. That is a claim about writing
+quality, not a prediction about any AI detector. Pangram, which trains on Claude's
+actual phrase distributions, detects at roughly 18% where detectors built on
+perplexity and burstiness sit near 0.24%. Clearing this catalogue does not move that
+number, and a score of 0 guarantees nothing except that these 44 patterns are
+absent. See DETECTION_ROBUSTNESS.md.
+
 Pure Python, zero dependencies. Compatible with Python 3.9+.
 
 Usage:
@@ -752,6 +760,14 @@ def run_hook() -> int:
 # ---- CLI ----------------------------------------------------------------------
 
 
+# Printed under every human-readable score. A number this tool calls "clean" is a
+# statement about 44 known patterns and nothing else -- see DETECTION_ROBUSTNESS.md
+# for why a classifier trained on Claude's phrase distributions is a different
+# question entirely. Deliberately absent from --json: machines do not misread a
+# verdict, people do.
+SCORE_SCOPE = "44 known patterns, not detector evasion — see DETECTION_ROBUSTNESS.md"
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="Score a text file on AI-writing patterns. Lower score = more human."
@@ -797,6 +813,7 @@ def main(argv: list[str] | None = None) -> int:
     else:
         print(f"humanize_score: {result['score']}/100  ({result['verdict']})")
         print(f"profile:        {profile}  ({result['word_count']} words)")
+        print(f"scope:          {SCORE_SCOPE}")
         print("top offenders:")
         for off in result["top_offenders"]:
             print(f"  - {off['pattern']:32s} weighted={off['weighted']}")

@@ -98,6 +98,7 @@ git clone --depth 1 https://github.com/kimhons/humanize.git /tmp/humanize &&
 $ python ~/.claude/skills/humanize/scripts/humanize_score.py STAGE3/MANUSCRIPT.md
 humanize_score: 38.4/100  (minor_residue)
 profile:        academic  (3,420 words)
+scope:          44 known patterns, not detector evasion — see DETECTION_ROBUSTNESS.md
 top offenders:
   - methodology_pseudo                weighted=12.50
   - significance_inflation            weighted=7.50
@@ -110,6 +111,28 @@ top offenders:
 # JSON output for CI / pipelines
 python humanize_score.py --json --profile=docs README.md
 ```
+
+### What the score does not mean
+
+The number is a weighted rate of the 44 patterns in this catalogue, per 100 words.
+A long clean draft and a short one score the same. That is a claim about writing
+quality, and nothing more.
+
+It is **not** a prediction about any AI detector. [Pangram](https://www.pangram.com/),
+which trains on the phrase distributions of specific models rather than on
+perplexity, detects at roughly 18% where perplexity-and-burstiness detectors sit
+near 0.24% — and clearing this catalogue does not move that number, because the two
+are measuring different things. A score of 0 means these 44 patterns are absent. It
+does not mean text will pass a classifier, and nothing here should be relied on as
+though it did.
+
+[DETECTION_ROBUSTNESS.md](DETECTION_ROBUSTNESS.md) has the detector landscape and the
+argument in full. It is worth reading before trusting any score, including this one.
+
+The defensible reason to use this tool is the one the always-on rule argues for:
+future sessions read past output and infer "this is how we write here", so an
+untreated pattern becomes house style. Catching it at write-time is cheaper than
+catching it at review.
 
 ### Statistical check
 
