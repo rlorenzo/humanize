@@ -8,12 +8,13 @@ Lower score = more human. Threshold convention:
    40-60  obvious patterns, needs editing
    60-100 heavy slop, rewrite
 
-WHAT THE SCORE DOES NOT MEAN: it counts the 44 patterns in this catalogue. That is
-a claim about writing quality, not a prediction about any AI detector. Pangram, which
-trains on Claude's actual phrase distributions, detects at roughly 18% where the
-perplexity-and-burstiness detectors sit near 0.24%, and clearing this catalogue does
-not move that number. A score of 0 is not a guarantee of anything except that these
-44 patterns are absent. See DETECTION_ROBUSTNESS.md.
+WHAT THE SCORE DOES NOT MEAN: it is a weighted rate of the 44 patterns in this
+catalogue, per 100 words, not a raw count of hits. That is a claim about writing
+quality, not a prediction about any AI detector. Pangram, which trains on Claude's
+actual phrase distributions, detects at roughly 18% where detectors built on
+perplexity and burstiness sit near 0.24%. Clearing this catalogue does not move that
+number, and a score of 0 guarantees nothing except that these 44 patterns are
+absent. See DETECTION_ROBUSTNESS.md.
 
 Pure Python, zero dependencies. Compatible with Python 3.9+.
 

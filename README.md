@@ -114,7 +114,8 @@ python humanize_score.py --json --profile=docs README.md
 
 ### What the score does not mean
 
-The number counts the 44 patterns in this catalogue. That is a claim about writing
+The number is a weighted rate of the 44 patterns in this catalogue, per 100 words.
+A long clean draft and a short one score the same. That is a claim about writing
 quality, and nothing more.
 
 It is **not** a prediction about any AI detector. [Pangram](https://www.pangram.com/),
