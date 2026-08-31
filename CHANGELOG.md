@@ -13,6 +13,40 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- **`count_fragmented_headers` (#29) detected the opposite of what it documented.**
+  It required the line after the short one to be non-blank, so a real fragmented
+  header — heading, restating stub, blank line — never fired, while every ordinary
+  hard-wrapped paragraph did. It also never tested for restatement at all, only for
+  length. It now requires the stub to stand alone as its own paragraph *and* to echo
+  at least half the heading's content words. On this repository's own documents the
+  false-positive count fell from 11 to 1 in `README.md`, 4 to 0 in
+  `DETECTION_ROBUSTNESS.md`, and 3 to 0 in `CHANGELOG.md`.
+- **`count_polysyndetic_tripleting` (#41) missed most real triplets.** The regex
+  matched only bare single words between commas, so `"The code, the tests, and the
+  docs"` did not register. Items may now carry a determiner or possessive.
+  Separately, comma-delimited parenthetical adverbs (`"it was done, however, and
+  then we moved on"`) have identical surface punctuation to a triplet and were
+  counting as one; they are now excluded.
+
+### Added
+
+- `tests/test_heuristic_counters.py` — the first tests for the four heuristic
+  counters (#11, #17, #29, #41), the patterns a regex cannot express. Coverage of
+  `humanize_score.py` went 69% → 80%, repository total 83% → 88%, and the CI floor
+  rose from 80% to 85%.
+
+### Known issues
+
+- `count_title_case_headings` (#17) fires on sentence-case headings containing two
+  proper nouns (`"## Working with GitHub Actions"`). The `len(w) > 2` filter drops
+  the lowercase function words that would otherwise distinguish the two cases.
+  Pinned by a test rather than fixed: separating a proper noun from a title-cased
+  common noun needs a dictionary.
+- `count_fragmented_headers` still fires on a heading followed by a link or a bold
+  structured entry that reuses its words (`"## License"` / `"MIT — see [LICENSE](LICENSE)."`).
+
 ## [1.2.0] — 2026-08-31
 
 ### Changed
