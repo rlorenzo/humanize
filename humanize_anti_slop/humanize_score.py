@@ -496,12 +496,39 @@ def _content_words(text: str) -> set[str]:
     return {w.removesuffix("s") for w in re.findall(r"[A-Za-z]+", text.lower()) if len(w) > 3}
 
 
+def _standalone_stub(lines: list[str], j: int) -> str | None:
+    """The line at ``j`` if it is a short non-heading line in a paragraph of its own.
+
+    "Its own paragraph" means a blank line or end of file follows it: a short
+    first line of a wrapped paragraph is ordinary prose, not a stub.
+    """
+    line = lines[j].strip()
+    if line.startswith("#") or len(line.split()) > 8:
+        return None
+    if j + 1 < len(lines) and lines[j + 1].strip():
+        return None
+    return line
+
+
+def _restates_heading(heading: str, line: str) -> bool:
+    """Whether at least half the heading's content words reappear in ``line``.
+
+    A heading with no content words at all restates nothing, and returning False
+    there keeps the caller from dividing by zero.
+    """
+    heading_words = _content_words(heading)
+    if not heading_words:
+        return False
+    return len(heading_words & _content_words(line)) / len(heading_words) >= 0.5
+
+
 def count_fragmented_headers(text: str) -> int:
     """#29. Heading followed by a short standalone line that restates the heading.
 
     Three conditions, all required: the line after the heading is short (<= 8
     words), it stands alone as its own paragraph, and it restates the heading
-    rather than saying something new.
+    rather than saying something new. The first two are checked by
+    ``_standalone_stub``, the third by ``_restates_heading``.
 
     The restatement test is what makes this pattern #29 rather than "heading
     followed by a short line": at least half the heading's content words have to
@@ -519,17 +546,8 @@ def count_fragmented_headers(text: str) -> int:
             j += 1
         if j >= len(lines):
             continue
-        next_line = lines[j].strip()
-        if next_line.startswith("#") or len(next_line.split()) > 8:
-            continue
-        # The line must be its own paragraph: blank line or end of file after it.
-        if j + 1 < len(lines) and lines[j + 1].strip():
-            continue
-        heading_words = _content_words(heading.group(1))
-        if not heading_words:
-            continue
-        echoed = heading_words & _content_words(next_line)
-        if len(echoed) / len(heading_words) >= 0.5:
+        stub = _standalone_stub(lines, j)
+        if stub is not None and _restates_heading(heading.group(1), stub):
             count += 1
     return count
 
