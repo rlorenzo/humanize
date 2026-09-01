@@ -527,8 +527,8 @@ def count_fragmented_headers(text: str) -> int:
 
     Three conditions, all required: the line after the heading is short (<= 8
     words), it stands alone as its own paragraph, and it restates the heading
-    rather than saying something new. The first two are ``_standalone_stub``,
-    the third is ``_restates_heading``.
+    rather than saying something new. The first two are checked by
+    ``_standalone_stub``, the third by ``_restates_heading``.
 
     The restatement test is what makes this pattern #29 rather than "heading
     followed by a short line": at least half the heading's content words have to
