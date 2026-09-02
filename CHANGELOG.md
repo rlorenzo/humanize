@@ -13,8 +13,100 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.0] — 2026-09-01
+
+### Removed — BREAKING
+
+- **`signature_score` and `verdict` are gone from `burstiness_check`, from both the
+  JSON and the human-readable output.** The composite was tested against two
+  labelled corpora and only one of its five inputs cleared the bar on both. Three
+  failed it; the fourth, `paragraph_cv`, neither passed nor failed — neither
+  corpus could measure it, which is a different result and is marked separately
+  below. Separation AUC, folded so 0.5 is chance, against a 0.65 bar written down
+  before any result was seen:
+
+  | metric | HC3 | RAID | RAID chat-only | |
+  |---|---|---|---|---|
+  | `sentence_cv` | 0.764 | 0.663 | 0.720 | kept |
+  | `lexical_diversity` | 0.672 | 0.575 | 0.582 | retired — reverses sign |
+  | `function_word_ratio` | 0.600 | 0.553 | 0.576 | retired |
+  | `subordinate_density` | 0.518 | 0.514 | 0.590 | retired |
+  | `paragraph_cv` | — | — | — | retired — untestable, not failed |
+
+  HC3: 4,330 length-matched documents over five domains. RAID-train: 4,867
+  human/AI pairs sharing a source text, over eight domains and eleven generators,
+  unattacked rows only. `lexical_diversity` does not merely fall below the bar — it
+  changes sign, scoring higher for human text on HC3 and lower on RAID.
+  `paragraph_cv` was untestable on both: 85% of HC3 answers are a single
+  paragraph, and RAID's extraction leaves only 9.8% of its human documents
+  multi-paragraph against 61.5% of the AI ones, so the metric is measurable in 11%
+  of the corpus against a floor of 25%.
+
+- **The bands for the four retired metrics are removed, not merely unscored.**
+  Keeping them would have kept the original bug: the `lexical_diversity` band of
+  [0.40, 0.65] was inherited from whole-document TTR while the metric is MATTR-50,
+  which runs 0.78-0.85 on ordinary English prose, so it flagged every document it
+  was shown. This repository's own `README.md`, `DETECTION_ROBUSTNESS.md` and
+  `CHANGELOG.md` now report no flags; all three previously reported
+  `AI-uniform` or `heavy-AI-signature`.
+
+- **`--profile` no longer accepts `academic`, `blog` or `docs` on
+  `burstiness-check`.** All three resolved identically to `default`: three CLI
+  names promising a tuning that was never implemented. `default` and `esl` remain,
+  and `esl` is the only one that changes anything (`sentence_cv` 0.50 against
+  0.55). Note that `humanize-score` has profiles of the same names and those are
+  unaffected — they carry real per-pattern carve-outs and were never the same
+  feature.
+
+### Changed — BREAKING
+
+- **Exit code semantics.** Was `1 if signature_score > --threshold else 0`; now
+  `1` if the flags raised are ones the selected `--fail-on` gates on, else `0` —
+  so `any` (the default) exits `1` on any flag, `cv` only on a burstiness-CV
+  flag, and `never` always exits `0`. Non-zero still means
+  "something to look at", so a caller checking only for non-zero keeps working, but
+  a pipeline that reasoned about the score's magnitude will not. `2` still means a
+  bad path.
+- **`--json` shape.** `signature_score` and `verdict` are gone. `profile`,
+  `metrics`, `targets` and `flags` remain, `flags` is now the headline output, and
+  a new `unbanded` array names the four metrics that are reported without any
+  threshold asserted. `targets` now contains only `sentence_cv`.
+- **`sentence_cv` and `paragraph_cv` report `null` below two sentences or two
+  paragraphs**, where they previously reported `0.0`. A coefficient of variation
+  over fewer than two values is undefined, not zero, and 0.0 read as perfect
+  uniformity — which flagged every one-sentence file as AI-uniform pacing. This is
+  the same degeneracy that made `paragraph_cv` untestable on both corpora.
+
+### Deprecated
+
+- **`--threshold` on `burstiness-check`** is accepted, ignored, and warns on stderr
+  for one minor version. It is kept rather than removed because an unrecognised
+  argument exits 2, which would break any caller still passing it. It has no
+  meaning now that there is no score to compare against.
+
 ### Added
 
+- **A per-generator separation table** in `scripts/calibration/results/raid_phase1.json`,
+  each generator length-matched against human text independently. `sentence_cv` runs
+  0.550-0.617 against the weakest base models and 0.777-0.809 against chatgpt,
+  mistral-chat, gpt4 and cohere-chat — the regime this tool is actually pointed at,
+  and the reason the pooled RAID figure understates it. Not a clean split, though:
+  cohere is a base model and reaches 0.713.
+- **`--fail-on=any|cv|never`** replaces `--threshold` as the gate. `any` (default)
+  reproduces today's "non-zero means look at this"; `cv` gates only on the
+  burstiness-CV family; `never` gives pure reporting.
+- **`normalise()`**, one input-cleaning step feeding all five metrics. The sentence
+  and paragraph splitters previously stripped code fences, headings and table rules
+  while the word tokenizer saw the raw document, so the two halves of the module
+  measured different strings. It also handles HTML tags, comments and entity
+  escapes, matches tags by name so `<YOUR_API_KEY>` and `List<Integer>` survive,
+  and hands back punctuation adjacent to a stripped URL so a sentence ending in a
+  link keeps the full stop that ends it.
+- Calibration spikes and their committed evidence under `scripts/calibration/`.
+- `tests/test_heuristic_counters.py` — the first tests for the four heuristic
+  counters (#11, #17, #29, #41), the patterns a regex cannot express. Coverage of
+  `humanize_score.py` went 69% → 80%, repository total 83% → 88%, and the CI floor
+  rose from 80% to 85%.
 - The scorer's human-readable output carries a `scope:` line naming what the number
   does *not* mean: it is a weighted rate of the 44 patterns in this catalogue,
   which is a claim about writing quality, not a prediction about any AI detector.
@@ -42,13 +134,6 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   Separately, comma-delimited parenthetical adverbs (`"it was done, however, and
   then we moved on"`) have identical surface punctuation to a triplet and were
   counting as one; they are now excluded.
-
-### Added
-
-- `tests/test_heuristic_counters.py` — the first tests for the four heuristic
-  counters (#11, #17, #29, #41), the patterns a regex cannot express. Coverage of
-  `humanize_score.py` went 69% → 80%, repository total 83% → 88%, and the CI floor
-  rose from 80% to 85%.
 
 ### Known issues
 

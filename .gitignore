@@ -31,3 +31,10 @@ uv.lock
 
 # review-pr skill scratch (per-PR ignored-comment list)
 .review-pr-ignored-*
+
+# Calibration corpora (HC3/RAID downloads; see scripts/calibration/)
+scripts/calibration/data/
+
+# code-review-loop scratch (report and summary, rewritten each run)
+agent-code-review.md
+agent-review-summary.md
