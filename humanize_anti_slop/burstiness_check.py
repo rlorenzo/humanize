@@ -1,50 +1,66 @@
 #!/usr/bin/env python3
-"""burstiness_check — measure statistical signatures of a text file.
+"""burstiness_check — report statistical signatures of a text file.
 
-Returns burstiness CV, lexical diversity (MATTR-50), function-word ratio,
-paragraph-length variation, and a subordinate-clause-depth proxy. Flags when
-signatures fall in the "AI-uniform" band rather than the "human-bursty" band.
+Measures burstiness CV, paragraph-length variation, lexical diversity (MATTR-50),
+function-word ratio, and a subordinate-clause-depth proxy. **Diagnostics, not a
+verdict.** Only `sentence_cv` carries a threshold; the rest are reported as
+numbers with nothing asserted about them.
 
 Pure Python, zero dependencies. Compatible with Python 3.9+.
 
-Targets (default):
-   sentence_cv          >= 0.55 (>= 0.50 for ESL profile)
-   paragraph_cv         >= 0.40
-   lexical_diversity    in [0.40, 0.65]    -- UNCALIBRATED, see below
-   subordinate_density  >= 0.10 (commas+semicolons per word)
-   function_word_ratio  in [0.40, 0.55]    -- UNCALIBRATED, see below
+Target (the only one):
+   sentence_cv          >= 0.55 (>= 0.50 for ESL profile, an untested allowance
+                        rather than a second calibrated bar -- see resolve_targets)
 
-KNOWN ISSUE: trust sentence_cv and paragraph_cv; do not trust signature_score.
-The two heaviest-weighted checks (x200 and x300) still flag on every document,
-so the composite continues to report "heavy-AI-signature" for human prose. What
-remains is a threshold problem, not a measurement problem:
+WHY THERE IS ONLY ONE. The composite `signature_score` was measured against two
+labelled corpora and retired, because four of its five inputs did not separate
+AI text from human text. Separation AUC, folded to [0.5, 1] so 0.5 is chance:
 
-  * lexical_diversity: the [0.40, 0.65] band was set for whole-document
-    type-token ratio, which falls as a document grows. The metric is MATTR-50,
-    which is length-stable by design and runs 0.77-0.90 on ordinary English
-    prose. MATTR is the better metric, so the band should move to match it --
-    but by how much is a corpus question.
-  * function_word_ratio: the 0.40-0.55 band assumes a full function-word
-    inventory. FUNCTION_WORDS now holds one (~300 closed-class entries including
-    contractions, up from 56), which moved measured prose from 0.15-0.21 to
-    0.24-0.31 -- real, and still well short of the band. The short list was one
-    cause; the band itself is the other, and it also needs calibrating.
+   metric                HC3     RAID    RAID chat-only
+   sentence_cv           0.764   0.663   0.720            kept
+   lexical_diversity     0.672   0.575   0.582            retired
+   function_word_ratio   0.600   0.553   0.576            retired
+   subordinate_density   0.518   0.514   0.590            retired
+   paragraph_cv          untestable on either corpus      retired
 
-Setting either band from a handful of files would be the same pseudo-precision
-this project flags as pattern #43. Doing it properly needs two labelled corpora
--- human and AI-generated -- since tuning against human text alone only proves
-the tool stopped firing, not that it still separates. Until that exists,
-signature_score is diagnostic output, not a verdict.
+The bar -- 0.65 -- was written down before any result was looked at. Three
+findings do not survive summarising:
+
+  * lexical_diversity does not merely fall below the bar, it changes sign: human
+    text scores higher on HC3 and lower on RAID. A metric whose direction depends
+    on the corpus has no band worth fitting.
+  * paragraph_cv could not be tested by either corpus. 85% of HC3 answers are one
+    paragraph, and only 9.8% of RAID's human documents run to more than one
+    against 61.5% of the AI ones -- so the metric is measurable in 11% of that
+    corpus against a 25% floor. The imbalance alone hands it a pooled AUC of
+    0.758, which is a fact about how the two classes were extracted rather than
+    about how either writes.
+  * sentence_cv separates best against instruction-tuned generators, but the
+    split is untidy: the top four are cohere-chat 0.809, gpt4 0.789, mistral-chat
+    0.785 and chatgpt 0.777, while the weakest are base models at 0.550-0.617 --
+    and cohere, a base model at 0.713, beats llama-chat and mpt-chat. Chat tuning
+    moves the metric; it does not sort the generators cleanly.
+
+Keeping the retired bands would have kept the original bug: lexical_diversity's
+[0.40, 0.65] was inherited from whole-document TTR, while the metric is MATTR-50,
+which runs 0.78-0.85 on ordinary prose and so flagged every document ever shown.
+
+Corpora, method and the full per-generator table: CHANGELOG 2.0.0 and
+`scripts/calibration/results/raid_phase1.json`.
+
+Exit codes: 0 clean, 1 flagged (see --fail-on), 2 bad path.
 
 Usage:
    python burstiness_check.py FILE.md
    python burstiness_check.py --profile=esl FILE.md
+   python burstiness_check.py --fail-on=cv FILE.md
    python burstiness_check.py --json FILE.md
 """
 
 from __future__ import annotations
 
 import argparse
+import html
 import json
 import math
 import re
@@ -67,8 +83,6 @@ from pathlib import Path
 # "it's" arrive as single tokens; without these entries the most frequent function
 # words in natural prose count against the ratio instead of toward it.
 # fmt: off
-# Grouped by grammatical class and kept dense on purpose: a word list reads better
-# as columns than as 300 one-item lines, and the grouping is what makes it reviewable.
 _DETERMINERS = [
     "a", "an", "the", "this", "that", "these", "those", "each", "every",
     "either", "neither", "another", "other", "others", "such", "some", "any",
@@ -154,24 +168,168 @@ FUNCTION_WORDS = frozenset(
 )
 
 
-def split_sentences(text: str) -> list[str]:
-    """Split prose into sentences. Strips fenced code blocks first."""
-    # Strip fenced code blocks
+# HTML tags are stripped by name rather than by shape. The shape rule that came
+# first, </?[A-Za-z][^<>]*>, also ate "<YOUR_API_KEY>" and the "<Integer>" out of
+# "List<Integer>" -- placeholders and generics are ordinary content in the kind of
+# technical prose this tool is pointed at, and deleting them silently biases both
+# vocabulary metrics. An unknown angle-bracket construct is now left alone: text
+# that survives is recoverable, text that is deleted is not.
+_HTML_TAGS = (  # noqa: SIM905 -- a word list reads as columns, not 100 one-item lines
+    "a abbr address article aside b blockquote body br button caption cite code col "
+    "colgroup dd details div dl dt em fieldset figcaption figure footer form h1 h2 h3 "
+    "h4 h5 h6 head header hr html i iframe img input ins kbd label legend li link main "
+    "mark meta nav ol optgroup option p param picture pre q s samp script section "
+    "select small source span strong style sub summary sup table tbody td textarea "
+    "tfoot th thead time title tr u ul var video wbr"
+).split()
+# Block-level tags among them, and the two that stand for a line break. A block
+# tag is a boundary; deleting it outright is what an empty replacement did, and
+# "<p>One.</p><p>Two.</p>" with no whitespace between the tags collapsed to
+# "One.Two." -- one sentence where the same prose gives two. That is the same
+# silent corruption of sentence_cv as a URL swallowing the full stop that ends
+# its sentence, on the one metric that survived both corpora. Block tags now
+# become a blank line, <br> and <hr> a newline, and only inline tags vanish.
+_BLOCK_TAGS = (  # noqa: SIM905 -- a word list reads as columns, not one item per line
+    "address article aside blockquote body caption col colgroup dd details div dl dt "
+    "fieldset figcaption figure footer form h1 h2 h3 h4 h5 h6 head header html iframe "
+    "legend li main nav ol optgroup option p param picture pre script section select "
+    "source style summary table tbody td textarea tfoot th thead title tr ul video"
+).split()
+_LINE_TAGS = ("br", "hr")
+
+
+def _tag_pattern(names: tuple[str, ...] | list[str]) -> re.Pattern[str]:
+    """Matcher for a set of tag names.
+
+    The attribute part skips over quoted values, so a literal ">" inside one does
+    not end the match early and strand the rest of the attribute as visible text.
+    """
+    return re.compile(
+        r"</?(?:" + "|".join(names) + r")(?:\s(?:\"[^\"]*\"|'[^']*'|[^<>\"'])*)?/?>",
+        re.IGNORECASE,
+    )
+
+
+_BLOCK_TAG_RE = _tag_pattern(_BLOCK_TAGS)
+_LINE_TAG_RE = _tag_pattern(_LINE_TAGS)
+_TAG_RE = _tag_pattern(_HTML_TAGS)
+
+# script and style hold raw text, not prose, and the tag passes above only remove
+# the tags -- the body survived as words. "var x=1;function f(){return 42;}" was
+# reaching the tokenizer as var/x/function/f/return: a run of unique non-words,
+# which is the same thing code fences are stripped for. It inflates
+# lexical_diversity and depresses function_word_ratio, on documents whose prose
+# never contained any of it.
+#
+# An unclosed element consumes to end of text, which is what a browser does with
+# one: everything after an unopened </script> is script until the parser finds a
+# closer. Leaving _BLOCK_TAGS to catch it is not enough -- that pass removes the
+# tag and leaves the body, which is the whole defect.
+_RAW_TEXT_RE = re.compile(
+    r"<(script|style)(?:\s(?:\"[^\"]*\"|'[^']*'|[^<>\"'])*)?>(?:[\s\S]*?</\1\s*>|[\s\S]*\Z)",
+    re.IGNORECASE,
+)
+
+# Inline links and images, tolerating one level of nesting in the anchor text --
+# "[this [nested] thing](url)" used to match nothing at all, leaking the brackets
+# and the whole URL into the word stream.
+_LINK_RE = re.compile(
+    r"!?\[([^\[\]]*(?:\[[^\[\]]*\][^\[\]]*)*)\]"
+    # The target also tolerates one level of nesting: a Wikipedia
+    # "..._(disambiguation)" URL ends at the first ")" otherwise, leaving a stray
+    # bracket behind in the prose.
+    r"\((?:[^()]|\([^()]*\))*\)"
+)
+
+# Bare and autolinked URLs, and the targets of reference-style definitions, none
+# of which _LINK_RE can see.
+_URL_RE = re.compile(r"<?\bhttps?://[^\s<>\]]+>?")
+
+# Punctuation that ends a sentence rather than belonging to the URL before it.
+# Without this, "see https://example.com/page. It has more." lost the full stop
+# with the URL and became one sentence instead of two -- a silent, systematic
+# corruption of sentence_cv, which is the strongest metric measured so far.
+_URL_TAIL = ".,;:!?'\")]>"
+
+# The tokenizer every word-based metric reads. Module-level so the calibration
+# spike imports it instead of re-declaring the pattern: a change here cannot
+# then silently invalidate a committed AUC.
+WORD_RE = re.compile(r"[A-Za-z']+")
+
+
+def _drop_url(match: re.Match[str]) -> str:
+    """Remove the URL, hand back the punctuation that was only adjacent to it."""
+    url = match.group(0)
+    tail = ""
+    while url and url[-1] in _URL_TAIL:
+        tail = url[-1] + tail
+        url = url[:-1]
+    # An autolink wrapper is part of the URL, not the sentence.
+    return tail[1:] if url.startswith("<") and tail.startswith(">") else tail
+
+
+def normalise(text: str) -> str:
+    """Reduce a document to the prose the metrics are meant to measure.
+
+    Every metric reads the output of this function, so all five measure the same
+    string. They did not always: split_sentences stripped code fences, headings
+    and table rules while the word tokenizer in analyse saw the raw document, so
+    lexical_diversity and function_word_ratio were computed over markup the CV
+    metrics had already discarded. Calibrating bands on one string and applying
+    them to another is how a corpus-fitted threshold drifts on real files.
+
+    What goes, and why the order is load-bearing: code and URLs are runs of unique
+    non-words that inflate lexical diversity and depress the function-word ratio;
+    headings and table rules are labels, not sentences. Unescaping runs before the
+    comment and tag passes so markup written escaped -- HC3 carries a lot of it --
+    arrives as markup, and so "don&#39;t" becomes the one contraction token
+    FUNCTION_WORDS knows rather than two non-words. Comments in particular have to
+    come after it: stripping them first left "&lt;!-- note --&gt;" untouched, and
+    the unescape then turned it into a live comment nothing removed, putting its
+    words into the token stream.
+
+    Not idempotent, and it cannot be: "&amp;lt;" unescapes to "&lt;" on one pass
+    and to "<" on the next, so a second application always has more to do. That
+    is why analyse normalises exactly once and hands the result to the private
+    splitters, and why the public split_sentences and split_paragraphs -- which
+    do normalise, for callers holding a raw document -- are not on that path.
+    """
     text = re.sub(r"```[\s\S]*?```", "", text)
-    # Strip inline code
     text = re.sub(r"`[^`]*`", "", text)
-    # Strip Markdown headings (the heading text itself isn't prose)
+    text = html.unescape(text)
+    text = re.sub(r"<!--[\s\S]*?-->", "", text)
+    text = _RAW_TEXT_RE.sub("", text)
+    text = _BLOCK_TAG_RE.sub("\n\n", text)
+    text = _LINE_TAG_RE.sub("\n", text)
+    text = _TAG_RE.sub("", text)
+    text = _LINK_RE.sub(r"\1", text)
+    text = _URL_RE.sub(_drop_url, text)
     text = re.sub(r"^#{1,6}\s+.*$", "", text, flags=re.MULTILINE)
-    # Strip table separator lines
     text = re.sub(r"^\s*\|?[-: |]+\|?\s*$", "", text, flags=re.MULTILINE)
+    return text
+
+
+def _sentences_from(text: str) -> list[str]:
+    """Split text that has already been through normalise()."""
     # Sentence boundary: . ! ? followed by space + uppercase, or end of paragraph
     parts = re.split(r"(?<=[.!?])\s+(?=[A-Z])|\n\s*\n", text)
-    return [p.strip() for p in parts if p.strip() and len(p.split()) >= 2]
+    return [s for s in (p.strip() for p in parts) if len(s.split()) >= 2]
+
+
+def _paragraphs_from(text: str) -> list[str]:
+    """Split text that has already been through normalise()."""
+    parts = re.split(r"\n\s*\n", text)
+    return [s for s in (p.strip() for p in parts) if len(s.split()) >= 5]
+
+
+def split_sentences(text: str) -> list[str]:
+    """Split a raw document into sentences, discarding markup first."""
+    return _sentences_from(normalise(text))
 
 
 def split_paragraphs(text: str) -> list[str]:
-    text = re.sub(r"```[\s\S]*?```", "", text)
-    return [p.strip() for p in re.split(r"\n\s*\n", text) if p.strip() and len(p.split()) >= 5]
+    """Split a raw document into paragraphs, discarding markup first."""
+    return _paragraphs_from(normalise(text))
 
 
 def coefficient_of_variation(values: list[int]) -> float:
@@ -235,193 +393,263 @@ def shannon_word_entropy(words: list[str]) -> float:
 
 # ---- Threshold checks ---------------------------------------------------------
 
-# Each metric is checked against one bound. Flag text and score penalty come from
-# the same table, so a target can never drift between "what we warn about" and
-# "what we score".
+# Only a metric that survived corpus validation gets a threshold. The other four
+# are measured and reported, but nothing is asserted about them -- see the module
+# docstring for the AUC numbers that retired them. Keeping their old bands would
+# have kept the original bug: lexical_diversity's [0.40, 0.65] fires on every
+# document of ordinary English prose, which runs 0.78-0.85.
 
 
 @dataclass(frozen=True)
 class Check:
+    """A lower bound on one metric.
+
+    Lower bounds only: the upper-bound half went with the metrics that needed it,
+    and a branch no CHECKS entry can reach is a branch nobody tests. Reintroduce
+    it with the check that needs it.
+    """
+
     metric: str  # key into the measured-values dict
-    bound: str  # "min" (flag when below) or "max" (flag when above)
     target: str  # key into the profile-resolved targets dict
-    penalty: float  # deviation multiplier contributed to signature_score
     hint: str  # remedy shown to the writer
 
 
 CHECKS: tuple[Check, ...] = (
-    Check("sentence_cv", "min", "sentence_cv", 100, "AI-uniform pacing — vary sentence length"),
-    Check(
-        "paragraph_cv",
-        "min",
-        "paragraph_cv",
-        100,
-        "AI-uniform paragraphs — vary paragraph length",
-    ),
-    Check(
-        "lexical_diversity",
-        "min",
-        "lexical_diversity_min",
-        200,
-        "vocabulary too repetitive",
-    ),
-    Check(
-        "lexical_diversity",
-        "max",
-        "lexical_diversity_max",
-        200,
-        "synonym cycling or thesaurus attack",
-    ),
-    Check(
-        "subordinate_density",
-        "min",
-        "subordinate_density_min",
-        200,
-        "uniform syntax — add subordinate clauses, parenthetical asides",
-    ),
-    Check(
-        "function_word_ratio",
-        "min",
-        "function_word_ratio_min",
-        300,
-        "noun/verb-heavy prose typical of AI",
-    ),
-    Check(
-        "function_word_ratio",
-        "max",
-        "function_word_ratio_max",
-        300,
-        "filler-heavy prose",
-    ),
+    Check("sentence_cv", "sentence_cv", "AI-uniform pacing — vary sentence length"),
 )
+
+# Every metric measured, in report order. The calibration spike imports this
+# rather than re-listing it, so a metric renamed here cannot leave the corpus
+# that validated it measuring something else.
+METRICS: tuple[str, ...] = (
+    "sentence_cv",
+    "paragraph_cv",
+    "lexical_diversity",
+    "function_word_ratio",
+    "subordinate_density",
+)
+
+# Reported in `metrics`, never flagged. Named in the JSON as `unbanded` so a
+# caller can tell "we measured this and say nothing about it" apart from "this
+# passed". Derived, so adding a Check cannot leave a metric in both lists.
+UNBANDED_METRICS: tuple[str, ...] = tuple(
+    m for m in METRICS if m not in {check.metric for check in CHECKS}
+)
+
+# The internal metric names are what CHECKS, METRICS and the calibration spike
+# use; the JSON reports one of them under a different key, because the MATTR
+# window size is part of what was measured. `unbanded` exists to be indexed into
+# `metrics`, so it has to carry the reported key rather than the internal name.
+REPORT_KEYS: dict[str, str] = {"lexical_diversity": "lexical_diversity_mattr50"}
+
+# Metrics belonging to the burstiness family, for --fail-on=cv. paragraph_cv is
+# listed because it is a CV metric, not because it is trusted; it carries no
+# threshold, so today this set behaves identically to --fail-on=any. It is kept
+# separate so that gating on the CV family stays meaningful if paragraph_cv is
+# ever validated against a corpus that preserves paragraph breaks.
+CV_METRICS = frozenset({"sentence_cv", "paragraph_cv"})
+
+
+# Every profile offered has to change something. `academic`, `blog` and `docs`
+# were offered for three releases and all resolved identically to `default` --
+# three CLI names that did nothing but suggest a tuning that was never there.
+# humanize_score has its own profiles of the same names, and those do carry real
+# per-pattern carve-outs; these were never the same thing.
+PROFILES: tuple[str, ...] = ("default", "esl")
 
 
 def resolve_targets(profile: str) -> dict[str, float]:
-    """Threshold values for a profile. ESL writers get a looser sentence-CV bar."""
-    return {
-        "sentence_cv": 0.50 if profile == "esl" else 0.55,
-        "paragraph_cv": 0.40,
-        "lexical_diversity_min": 0.40,
-        "lexical_diversity_max": 0.65,
-        "subordinate_density_min": 0.10,
-        "function_word_ratio_min": 0.40,
-        "function_word_ratio_max": 0.55,
-    }
+    """Threshold values for a profile. ESL writers get a looser sentence-CV bar.
+
+    THE ESL OFFSET IS UNVALIDATED. 0.55 was fitted to HC3 and confirmed on RAID;
+    0.50 was not, and is the one number in this module that never faced the
+    pre-registered bar the composite was retired for failing. What supports it is
+    an inference, not a measurement: ESL false-positive rates run 3-6x native
+    (DETECTION_ROBUSTNESS.md), but that figure describes AI *detectors*, not
+    sentence_cv on ESL prose, and the step from one to the other -- and to 0.05
+    specifically -- is an assumption nobody has tested.
+
+    Neither corpus here could test it. HC3 and RAID are both overwhelmingly
+    native English, so fitting to them would not have re-derived the allowance,
+    it would have deleted it silently and left ESL writers held to a bar set on
+    prose unlike theirs. It is kept on that asymmetry: the cost of a slightly
+    loose bar for one group is smaller than the cost of a bar that over-flags
+    the group already most over-flagged. Treat it as a fairness allowance with a
+    known direction and an unknown magnitude, not as a calibrated threshold, and
+    re-derive it against an ESL-annotated corpus if one becomes available.
+
+    Unknown names raise rather than falling through to the default. argparse
+    already constrains the CLI to PROFILES, but `analyse` is importable, and a
+    retired name like "academic" would otherwise apply default targets while the
+    result reported the profile as honoured.
+    """
+    if profile not in PROFILES:
+        raise ValueError(f"unknown profile {profile!r}; choose from {', '.join(PROFILES)}")
+    return {"sentence_cv": 0.50 if profile == "esl" else 0.55}
 
 
-def apply_checks(
-    values: dict[str, float | None], targets: dict[str, float]
-) -> tuple[list[str], float]:
-    """Run every check, returning (flags, total weighted deviation).
+def apply_checks(values: dict[str, float | None], targets: dict[str, float]) -> list[str]:
+    """Run every check, returning the flags raised.
 
     A metric measuring None is undefined for this text (too short to measure) and
-    is skipped: it contributes no flag and no penalty.
+    is skipped: it contributes no flag.
     """
     flags: list[str] = []
-    deviations = 0.0
     for check in CHECKS:
         value = values[check.metric]
         if value is None:
             continue
         target = targets[check.target]
-        if check.bound == "min":
-            shortfall = target - value
-            comparison = f"{value:.3f} < {target}"
-            direction = "too low"
-        else:
-            shortfall = value - target
-            comparison = f"{value:.3f} > {target}"
-            direction = "too high"
-        if shortfall <= 0:
+        if value >= target:
             continue
-        flags.append(f"{check.metric} {direction} ({comparison}); {check.hint}")
-        deviations += shortfall * check.penalty
-    return flags, deviations
+        flags.append(f"{check.metric} too low ({value:.3f} < {target}); {check.hint}")
+    return flags
 
 
-def verdict_for(signature_score: float) -> str:
-    if signature_score < 15:
-        return "human-like"
-    if signature_score < 35:
-        return "borderline"
-    if signature_score < 60:
-        return "AI-uniform"
-    return "heavy-AI-signature"
+def flagged_metrics(flags: list[str]) -> set[str]:
+    """The metric each flag belongs to. Flags lead with the metric name."""
+    return {flag.split(" ", 1)[0] for flag in flags}
+
+
+def should_fail(flags: list[str], fail_on: str) -> bool:
+    if fail_on == "never":
+        return False
+    if fail_on == "cv":
+        return bool(flagged_metrics(flags) & CV_METRICS)
+    return bool(flags)
 
 
 # ---- Analysis -----------------------------------------------------------------
 
 
+def _cv_or_none(lengths: list[int]) -> float | None:
+    """CV over fewer than two units is undefined, not zero.
+
+    coefficient_of_variation returns 0.0 there, which reads as perfect uniformity
+    and flagged every one-sentence file as AI-uniform pacing. apply_checks skips a
+    metric measuring None.
+    """
+    return coefficient_of_variation(lengths) if len(lengths) >= 2 else None
+
+
+@dataclass(frozen=True)
+class Measurement:
+    """Every metric, measured from one normalisation of the text."""
+
+    words: list[str]
+    sentence_lengths: list[int]
+    paragraph_lengths: list[int]
+    values: dict[str, float | None]
+
+
+def measure_text(text: str) -> Measurement:
+    """Normalise once, then measure every metric on that one string.
+
+    The single measurement entry point: analyse() only formats what this returns,
+    and the calibration spike calls it too, so the corpus that validates a band
+    measures exactly what the tool ships. Normalising here is also why the private
+    splitters are the ones called -- see normalise() for why a second pass is not
+    safe.
+    """
+    text = normalise(text)
+    words = WORD_RE.findall(text.lower())
+    sentence_lengths = [len(s.split()) for s in _sentences_from(text)]
+    paragraph_lengths = [len(p.split()) for p in _paragraphs_from(text)]
+    return Measurement(
+        words=words,
+        sentence_lengths=sentence_lengths,
+        paragraph_lengths=paragraph_lengths,
+        values={
+            "sentence_cv": _cv_or_none(sentence_lengths),
+            "paragraph_cv": _cv_or_none(paragraph_lengths),
+            "lexical_diversity": lexical_diversity(words),
+            "function_word_ratio": function_word_ratio(words),
+            "subordinate_density": subordinate_density(text, len(words)),
+        },
+    )
+
+
 def analyse(text: str, profile: str = "default") -> dict:
-    sentences = split_sentences(text)
-    paragraphs = split_paragraphs(text)
-    words = re.findall(r"[A-Za-z']+", text.lower())
-
-    sentence_lengths = [len(s.split()) for s in sentences]
-    paragraph_lengths = [len(p.split()) for p in paragraphs]
-
-    values: dict[str, float | None] = {
-        "sentence_cv": coefficient_of_variation(sentence_lengths),
-        "paragraph_cv": coefficient_of_variation(paragraph_lengths),
-        "lexical_diversity": lexical_diversity(words),
-        "function_word_ratio": function_word_ratio(words),
-        "subordinate_density": subordinate_density(text, len(words)),
-    }
-
-    ld = values["lexical_diversity"]
-
+    m = measure_text(text)
+    values = m.values
     targets = resolve_targets(profile)
-    flags, deviations = apply_checks(values, targets)
-    signature_score = min(100.0, deviations)
+    flags = apply_checks(values, targets)
+
+    def r3(value: float | None) -> float | None:
+        return round(value, 3) if value is not None else None
 
     return {
         "profile": profile,
-        "signature_score": round(signature_score, 1),
-        "verdict": verdict_for(signature_score),
         "metrics": {
-            "sentence_count": len(sentences),
-            "paragraph_count": len(paragraphs),
-            "word_count": len(words),
-            "sentence_length_mean": round(statistics.mean(sentence_lengths), 1)
-            if sentence_lengths
+            "sentence_count": len(m.sentence_lengths),
+            "paragraph_count": len(m.paragraph_lengths),
+            "word_count": len(m.words),
+            "sentence_length_mean": round(statistics.mean(m.sentence_lengths), 1)
+            if m.sentence_lengths
             else 0,
-            "sentence_length_stdev": round(statistics.pstdev(sentence_lengths), 1)
-            if len(sentence_lengths) > 1
+            "sentence_length_stdev": round(statistics.pstdev(m.sentence_lengths), 1)
+            if len(m.sentence_lengths) > 1
             else 0,
-            "sentence_cv": round(values["sentence_cv"], 3),
-            "paragraph_length_mean": round(statistics.mean(paragraph_lengths), 1)
-            if paragraph_lengths
+            "sentence_cv": r3(values["sentence_cv"]),
+            "paragraph_length_mean": round(statistics.mean(m.paragraph_lengths), 1)
+            if m.paragraph_lengths
             else 0,
-            "paragraph_cv": round(values["paragraph_cv"], 3),
-            "lexical_diversity_mattr50": round(ld, 3) if ld is not None else None,
-            "function_word_ratio": round(values["function_word_ratio"], 3),
-            "subordinate_density": round(values["subordinate_density"], 3),
-            "shannon_entropy_bits": round(shannon_word_entropy(words), 2),
+            "paragraph_cv": r3(values["paragraph_cv"]),
+            "lexical_diversity_mattr50": r3(values["lexical_diversity"]),
+            "function_word_ratio": r3(values["function_word_ratio"]),
+            "subordinate_density": r3(values["subordinate_density"]),
+            "shannon_entropy_bits": round(shannon_word_entropy(m.words), 2),
         },
         "targets": targets,
+        "unbanded": [REPORT_KEYS.get(m, m) for m in UNBANDED_METRICS],
         "flags": flags,
     }
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="Measure statistical signatures of a text file. Lower signature_score = more human-like."
+        description=(
+            "Report statistical signatures of a text file. Diagnostics, not a verdict: "
+            "sentence_cv is the only metric with validated separating power."
+        )
     )
     parser.add_argument("path", help="Path to text file (.md, .tex, .txt, ...)")
     parser.add_argument(
         "--profile",
-        choices=["default", "esl", "academic", "blog", "docs"],
+        choices=list(PROFILES),
         default="default",
-        help="Profile (esl loosens sentence_cv target to 0.50)",
+        help=(
+            "Profile (esl loosens the sentence_cv target to 0.50; that offset is "
+            "an untested allowance, not a calibrated threshold)"
+        ),
     )
     parser.add_argument("--json", action="store_true", help="Emit raw JSON.")
     parser.add_argument(
+        "--fail-on",
+        choices=["any", "cv", "never"],
+        default="any",
+        help=(
+            "Exit non-zero when: any flag is raised (default), only a burstiness-CV "
+            "flag is raised (cv), or never."
+        ),
+    )
+    parser.add_argument(
         "--threshold",
         type=float,
-        default=35.0,
-        help="Exit non-zero if signature_score exceeds threshold (default 35).",
+        default=None,
+        help=argparse.SUPPRESS,  # deprecated; accepted for one minor version
     )
     args = parser.parse_args(argv)
+
+    if args.threshold is not None:
+        # Kept accepted rather than removed so existing callers do not die on an
+        # unrecognised argument -- .github/smoke-console-scripts.sh passes
+        # --threshold 100 as its CI gate. Remove after one minor version.
+        print(
+            "warning: --threshold is deprecated and ignored; signature_score was "
+            "retired. Use --fail-on=any|cv|never.",
+            file=sys.stderr,
+        )
 
     path = Path(args.path)
     if not path.is_file():
@@ -436,22 +664,39 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(result, indent=2))
     else:
         m = result["metrics"]
-        print(f"signature_score: {result['signature_score']}/100  ({result['verdict']})")
+
+        def shown(value: float | None, unit: str) -> str:
+            # :.3f, not str(): the value is already rounded to 3dp, and bare
+            # formatting drops the trailing zeros, so a CV of 0.610 printed as
+            # "0.61" and the README's own example output was unreproducible.
+            # The flag strings have always used :.3f; this matches them.
+            return f"{value:.3f}" if value is not None else f"n/a (needs 2+ {unit})"
+
         print(f"profile:         {args.profile}")
         print(
-            f"sentences:       {m['sentence_count']}  (mean {m['sentence_length_mean']} ± {m['sentence_length_stdev']} words, CV {m['sentence_cv']})"
+            f"sentences:       {m['sentence_count']}  (mean {m['sentence_length_mean']} "
+            f"± {m['sentence_length_stdev']} words, CV {shown(m['sentence_cv'], 'sentences')})"
         )
-        print(f"paragraphs:      {m['paragraph_count']}  (CV {m['paragraph_cv']})")
+        print(
+            f"paragraphs:      {m['paragraph_count']}  "
+            f"(CV {shown(m['paragraph_cv'], 'paragraphs')})"
+        )
         mattr = m["lexical_diversity_mattr50"]
         print(f"lexical MATTR50: {mattr if mattr is not None else 'n/a (under 50 words)'}")
         print(f"func-word ratio: {m['function_word_ratio']}")
         print(f"subord density:  {m['subordinate_density']}")
+        print(
+            "                 (paragraph_cv, MATTR50, func-word ratio and subord "
+            "density are reported only; no threshold is asserted)"
+        )
         if result["flags"]:
             print("flags:")
             for f in result["flags"]:
                 print(f"  - {f}")
+        else:
+            print("flags:           none")
 
-    return 1 if result["signature_score"] > args.threshold else 0
+    return 1 if should_fail(result["flags"], args.fail_on) else 0
 
 
 if __name__ == "__main__":
