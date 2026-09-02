@@ -53,6 +53,18 @@ def test_hook_manifest_points_at_a_script_that_exists():
         assert (REPO / relative).is_file(), f"hooks.json points at missing {relative}"
 
 
+def test_plugin_manifest_does_not_redeclare_the_standard_hooks_file():
+    # Claude Code loads hooks/hooks.json by itself; the manifest's `hooks` key is
+    # for additional files only. Naming the standard path there loads it twice and
+    # the plugin refuses to install with "Duplicate hooks file detected".
+    declared = json.loads(PLUGIN.read_text()).get("hooks")
+    paths = [declared] if isinstance(declared, str) else (declared or [])
+    for path in paths:
+        assert Path(path).as_posix().lstrip("./") != "hooks/hooks.json", (
+            f"plugin.json redeclares the auto-loaded hooks file: {path}"
+        )
+
+
 @pytest.mark.parametrize("script", ["humanize_score.py", "burstiness_check.py"])
 def test_install_script_ships_every_scorer(script):
     # A scorer the installer forgets is a scorer no user ever runs.

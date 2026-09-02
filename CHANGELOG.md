@@ -13,6 +13,21 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.1] — 2026-09-02
+
+### Fixed
+
+- **The plugin would not install.** `plugin.json` declared
+  `"hooks": "./hooks/hooks.json"`, which is the path Claude Code already loads on
+  its own. The manifest's `hooks` key is for *additional* hook files, so naming the
+  standard one loaded it twice and the install failed with `Duplicate hooks file
+  detected`. Removed the key; the hook is picked up automatically from
+  `hooks/hooks.json` exactly as before. Nothing about the hook's behaviour changes.
+
+  This affected every version that shipped the key, but v2.0.0 was the first
+  release anyone could install from this fork's own marketplace, so it is where it
+  surfaced. A test now asserts the manifest never names the auto-loaded path again.
+
 ## [2.0.0] — 2026-09-02
 
 ### Removed — BREAKING
@@ -299,7 +314,8 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `humanizer-reviewer` subagent, the PostToolUse hook, and `install.sh`.
 - `DETECTION_ROBUSTNESS.md`, recording what the score does and does not promise.
 
-[Unreleased]: https://github.com/rlorenzo/humanize/compare/v2.0.0...HEAD
+[Unreleased]: https://github.com/rlorenzo/humanize/compare/v2.0.1...HEAD
+[2.0.1]: https://github.com/rlorenzo/humanize/compare/v2.0.0...v2.0.1
 [2.0.0]: https://github.com/rlorenzo/humanize/compare/v1.2.0...v2.0.0
 [1.2.0]: https://github.com/rlorenzo/humanize/compare/v1.1.1...v1.2.0
 [1.1.1]: https://github.com/rlorenzo/humanize/compare/v1.1.0...v1.1.1

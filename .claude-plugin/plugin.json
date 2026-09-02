@@ -1,7 +1,7 @@
 {
   "name": "humanize",
   "displayName": "Humanize",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Anti-slop framework: humanize skill, reviewer subagent, and a PostToolUse scoring hook. Extends blader/humanizer.",
   "author": {
     "name": "Rex Lorenzo",
@@ -9,6 +9,5 @@
   },
   "keywords": ["writing", "editing", "humanize", "ai-slop", "prose", "academic-writing"],
   "skills": ["./"],
-  "agents": ["./agents/humanizer-reviewer.md"],
-  "hooks": "./hooks/hooks.json"
+  "agents": ["./agents/humanizer-reviewer.md"]
 }
