@@ -30,6 +30,10 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [2.0.0] — 2026-09-02
 
+> **This release cannot be installed as a Claude Code plugin; use 2.0.1.** The
+> manifest declared the hooks file the host already loads on its own. Nothing else
+> differs between the two, so everything below applies to 2.0.1.
+
 ### Removed — BREAKING
 
 - **`signature_score` and `verdict` are gone from `burstiness_check`, from both the
