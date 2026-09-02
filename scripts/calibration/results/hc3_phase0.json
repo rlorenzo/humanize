@@ -1,0 +1,267 @@
+{
+  "corpus": {
+    "documents": 4330,
+    "human": 2165,
+    "ai": 2165,
+    "mean_words_human": 178.4,
+    "mean_words_ai": 177.0,
+    "domains": [
+      "finance",
+      "medicine",
+      "open_qa",
+      "reddit_eli5",
+      "wiki_csai"
+    ],
+    "source": "Hello-SimpleAI/HC3 (CC-BY-SA-4.0)"
+  },
+  "bar": {
+    "auc": 0.65,
+    "collinear_rho": 0.8
+  },
+  "metrics": {
+    "sentence_cv": {
+      "auc_pooled": 0.279,
+      "ci95_pooled": [
+        0.2622,
+        0.2951
+      ],
+      "auc_macro": 0.2358,
+      "auc_by_domain": {
+        "finance": 0.3585,
+        "medicine": 0.1589,
+        "reddit_eli5": 0.1895,
+        "wiki_csai": 0.2361
+      },
+      "domains_dropped_as_degenerate": [
+        "open_qa"
+      ],
+      "auc_all_cells": {
+        "finance": 0.3585,
+        "medicine": 0.1589,
+        "open_qa": 0.9739,
+        "reddit_eli5": 0.1895,
+        "wiki_csai": 0.2361
+      },
+      "separation": 0.7642,
+      "measurable_fraction": 0.9284,
+      "untested_by_corpus": false,
+      "passes_bar": true,
+      "direction": "higher in human",
+      "human_mean": 0.4676,
+      "ai_mean": 0.3333
+    },
+    "paragraph_cv": {
+      "auc_pooled": 0.6407,
+      "ci95_pooled": [
+        0.6309,
+        0.6507
+      ],
+      "auc_macro": 0.5,
+      "auc_by_domain": {},
+      "domains_dropped_as_degenerate": [
+        "finance",
+        "medicine",
+        "open_qa",
+        "reddit_eli5",
+        "wiki_csai"
+      ],
+      "auc_all_cells": {
+        "finance": 0.5,
+        "medicine": 0.8405,
+        "open_qa": 0.5,
+        "reddit_eli5": 0.5,
+        "wiki_csai": 0.864
+      },
+      "separation": 0.5,
+      "measurable_fraction": 0.0079,
+      "untested_by_corpus": true,
+      "passes_bar": false,
+      "direction": "no direction",
+      "human_mean": 0.0078,
+      "ai_mean": 0.0704
+    },
+    "lexical_diversity": {
+      "auc_pooled": 0.3136,
+      "ci95_pooled": [
+        0.2981,
+        0.329
+      ],
+      "auc_macro": 0.3278,
+      "auc_by_domain": {
+        "finance": 0.2581,
+        "medicine": 0.2931,
+        "open_qa": 0.4393,
+        "reddit_eli5": 0.3083,
+        "wiki_csai": 0.3399
+      },
+      "domains_dropped_as_degenerate": [],
+      "auc_all_cells": {
+        "finance": 0.2581,
+        "medicine": 0.2931,
+        "open_qa": 0.4393,
+        "reddit_eli5": 0.3083,
+        "wiki_csai": 0.3399
+      },
+      "separation": 0.6722,
+      "measurable_fraction": 1.0,
+      "untested_by_corpus": false,
+      "passes_bar": true,
+      "direction": "higher in human",
+      "human_mean": 0.7855,
+      "ai_mean": 0.7514
+    },
+    "function_word_ratio": {
+      "auc_pooled": 0.535,
+      "ci95_pooled": [
+        0.5177,
+        0.5519
+      ],
+      "auc_macro": 0.5997,
+      "auc_by_domain": {
+        "finance": 0.2874,
+        "medicine": 0.6631,
+        "open_qa": 0.6834,
+        "reddit_eli5": 0.5709,
+        "wiki_csai": 0.7938
+      },
+      "domains_dropped_as_degenerate": [],
+      "auc_all_cells": {
+        "finance": 0.2874,
+        "medicine": 0.6631,
+        "open_qa": 0.6834,
+        "reddit_eli5": 0.5709,
+        "wiki_csai": 0.7938
+      },
+      "separation": 0.5997,
+      "measurable_fraction": 1.0,
+      "untested_by_corpus": false,
+      "passes_bar": false,
+      "direction": "higher in AI",
+      "human_mean": 0.4947,
+      "ai_mean": 0.5071
+    },
+    "subordinate_density": {
+      "auc_pooled": 0.5184,
+      "ci95_pooled": [
+        0.501,
+        0.536
+      ],
+      "auc_macro": 0.5185,
+      "auc_by_domain": {
+        "finance": 0.4877,
+        "medicine": 0.6728,
+        "open_qa": 0.468,
+        "reddit_eli5": 0.5284,
+        "wiki_csai": 0.4358
+      },
+      "domains_dropped_as_degenerate": [],
+      "auc_all_cells": {
+        "finance": 0.4877,
+        "medicine": 0.6728,
+        "open_qa": 0.468,
+        "reddit_eli5": 0.5284,
+        "wiki_csai": 0.4358
+      },
+      "separation": 0.5185,
+      "measurable_fraction": 1.0,
+      "untested_by_corpus": false,
+      "passes_bar": false,
+      "direction": "higher in AI",
+      "human_mean": 0.0505,
+      "ai_mean": 0.0511
+    }
+  },
+  "spearman": {
+    "sentence_cv": {
+      "sentence_cv": 1.0,
+      "paragraph_cv": -0.233,
+      "lexical_diversity": 0.129,
+      "function_word_ratio": 0.077,
+      "subordinate_density": -0.104
+    },
+    "paragraph_cv": {
+      "sentence_cv": -0.233,
+      "paragraph_cv": 1.0,
+      "lexical_diversity": -0.101,
+      "function_word_ratio": -0.167,
+      "subordinate_density": 0.112
+    },
+    "lexical_diversity": {
+      "sentence_cv": 0.129,
+      "paragraph_cv": -0.101,
+      "lexical_diversity": 1.0,
+      "function_word_ratio": -0.109,
+      "subordinate_density": 0.009
+    },
+    "function_word_ratio": {
+      "sentence_cv": 0.077,
+      "paragraph_cv": -0.167,
+      "lexical_diversity": -0.109,
+      "function_word_ratio": 1.0,
+      "subordinate_density": -0.283
+    },
+    "subordinate_density": {
+      "sentence_cv": -0.104,
+      "paragraph_cv": 0.112,
+      "lexical_diversity": 0.009,
+      "function_word_ratio": -0.283,
+      "subordinate_density": 1.0
+    }
+  },
+  "collinear_pairs": [],
+  "measurable_floor": 0.25,
+  "gates": {
+    "macro (domain-balanced, degenerate cells dropped)": {
+      "separation": {
+        "sentence_cv": 0.7642,
+        "paragraph_cv": 0.5,
+        "lexical_diversity": 0.6722,
+        "function_word_ratio": 0.5997,
+        "subordinate_density": 0.5185
+      },
+      "survivors": [
+        "sentence_cv",
+        "lexical_diversity"
+      ],
+      "survivors_deduped": [
+        "sentence_cv",
+        "lexical_diversity"
+      ],
+      "gate": "phase 1 -- two or more survive spanning both families; rebuild over the survivors"
+    },
+    "pooled (document-weighted)": {
+      "separation": {
+        "sentence_cv": 0.721,
+        "paragraph_cv": 0.6407,
+        "lexical_diversity": 0.6864,
+        "function_word_ratio": 0.535,
+        "subordinate_density": 0.5184
+      },
+      "survivors": [
+        "sentence_cv",
+        "lexical_diversity"
+      ],
+      "survivors_deduped": [
+        "sentence_cv",
+        "lexical_diversity"
+      ],
+      "gate": "phase 1 -- two or more survive spanning both families; rebuild over the survivors"
+    },
+    "macro over all cells, keeping the degenerate ones": {
+      "separation": {
+        "sentence_cv": 0.6166,
+        "paragraph_cv": 0.6409,
+        "lexical_diversity": 0.6723,
+        "function_word_ratio": 0.5997,
+        "subordinate_density": 0.5185
+      },
+      "survivors": [
+        "lexical_diversity"
+      ],
+      "survivors_deduped": [
+        "lexical_diversity"
+      ],
+      "gate": "phase X -- fewer than two independent metrics survive; nothing left to composite"
+    }
+  }
+}

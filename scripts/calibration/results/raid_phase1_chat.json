@@ -1,0 +1,281 @@
+{
+  "corpus": {
+    "source": "liamdugan/raid RAID-train (MIT), attack=none, one AI generation per source",
+    "revision": "865cac74188466cb0c3b7574a10204007b57a459",
+    "cached_rows": 41499,
+    "source_groups_with_both_classes": 4733,
+    "generators": {
+      "mpt-chat": 12153,
+      "llama-chat": 10880,
+      "mistral-chat": 5353,
+      "gpt4": 3516,
+      "chatgpt": 2700,
+      "cohere-chat": 1907
+    },
+    "chat_only": true,
+    "train_documents": 4150,
+    "held_out_documents": 1386,
+    "domains": [
+      "abstracts",
+      "books",
+      "news",
+      "poetry",
+      "recipes",
+      "reddit",
+      "reviews",
+      "wiki"
+    ]
+  },
+  "paragraph_audit": {
+    "human": {
+      "documents": 4990,
+      "multi_paragraph_fraction": 0.0978
+    },
+    "ai": {
+      "documents": 36509,
+      "multi_paragraph_fraction": 0.7099
+    }
+  },
+  "separation_by_generator": {
+    "mpt-chat": {
+      "pairs": 3324,
+      "separation": {
+        "sentence_cv": 0.6127,
+        "paragraph_cv": 0.7708,
+        "lexical_diversity": 0.7052,
+        "function_word_ratio": 0.6458,
+        "subordinate_density": 0.5975
+      }
+    },
+    "llama-chat": {
+      "pairs": 4943,
+      "separation": {
+        "sentence_cv": 0.6807,
+        "paragraph_cv": 0.8975,
+        "lexical_diversity": 0.5525,
+        "function_word_ratio": 0.5075,
+        "subordinate_density": 0.628
+      }
+    },
+    "chatgpt": {
+      "pairs": 1078,
+      "separation": {
+        "sentence_cv": 0.7766,
+        "paragraph_cv": 0.7504,
+        "lexical_diversity": 0.5732,
+        "function_word_ratio": 0.5709,
+        "subordinate_density": 0.6317
+      }
+    },
+    "mistral-chat": {
+      "pairs": 1934,
+      "separation": {
+        "sentence_cv": 0.7854,
+        "paragraph_cv": 0.7627,
+        "lexical_diversity": 0.5788,
+        "function_word_ratio": 0.5428,
+        "subordinate_density": 0.5993
+      }
+    },
+    "gpt4": {
+      "pairs": 677,
+      "separation": {
+        "sentence_cv": 0.7886,
+        "paragraph_cv": 0.7459,
+        "lexical_diversity": 0.5965,
+        "function_word_ratio": 0.7572,
+        "subordinate_density": 0.7375
+      }
+    },
+    "cohere-chat": {
+      "pairs": 353,
+      "separation": {
+        "sentence_cv": 0.809,
+        "paragraph_cv": 0.5277,
+        "lexical_diversity": 0.6948,
+        "function_word_ratio": 0.7944,
+        "subordinate_density": 0.6767
+      }
+    }
+  },
+  "bar": {
+    "auc": 0.65,
+    "collinear_rho": 0.8,
+    "measurable_floor": 0.25
+  },
+  "metrics": {
+    "sentence_cv": {
+      "auc_pooled": 0.2995,
+      "ci95_pooled": [
+        0.2852,
+        0.3148
+      ],
+      "auc_macro": 0.2803,
+      "auc_by_domain": {
+        "abstracts": 0.2099,
+        "books": 0.242,
+        "news": 0.201,
+        "poetry": 0.2106,
+        "recipes": 0.4222,
+        "reddit": 0.4309,
+        "reviews": 0.1333,
+        "wiki": 0.3922
+      },
+      "domains_dropped_as_degenerate": [],
+      "separation": 0.7197,
+      "measurable_fraction": 0.9807,
+      "untested_by_corpus": false,
+      "passes_bar": true,
+      "direction": "higher in human",
+      "human_mean": 0.5155,
+      "ai_mean": 0.3722
+    },
+    "paragraph_cv": {
+      "auc_pooled": 0.827,
+      "ci95_pooled": [
+        0.8147,
+        0.8393
+      ],
+      "auc_macro": 0.3877,
+      "auc_by_domain": {
+        "reviews": 0.3877
+      },
+      "domains_dropped_as_degenerate": [
+        "abstracts",
+        "books",
+        "news",
+        "poetry",
+        "recipes",
+        "reddit",
+        "wiki"
+      ],
+      "separation": 0.6123,
+      "measurable_fraction": 0.1007,
+      "untested_by_corpus": true,
+      "passes_bar": false,
+      "direction": "higher in human",
+      "human_mean": 0.0451,
+      "ai_mean": 0.2541
+    },
+    "lexical_diversity": {
+      "auc_pooled": 0.5806,
+      "ci95_pooled": [
+        0.5633,
+        0.5994
+      ],
+      "auc_macro": 0.5816,
+      "auc_by_domain": {
+        "abstracts": 0.5929,
+        "books": 0.58,
+        "news": 0.528,
+        "poetry": 0.5515,
+        "recipes": 0.5352,
+        "reddit": 0.7532,
+        "reviews": 0.5082,
+        "wiki": 0.6041
+      },
+      "domains_dropped_as_degenerate": [],
+      "separation": 0.5816,
+      "measurable_fraction": 1.0,
+      "untested_by_corpus": false,
+      "passes_bar": false,
+      "direction": "higher in AI",
+      "human_mean": 0.7988,
+      "ai_mean": 0.8227
+    },
+    "function_word_ratio": {
+      "auc_pooled": 0.4422,
+      "ci95_pooled": [
+        0.426,
+        0.4595
+      ],
+      "auc_macro": 0.4243,
+      "auc_by_domain": {
+        "abstracts": 0.4246,
+        "books": 0.4955,
+        "news": 0.5454,
+        "poetry": 0.3746,
+        "recipes": 0.4275,
+        "reddit": 0.4682,
+        "reviews": 0.1529,
+        "wiki": 0.5061
+      },
+      "domains_dropped_as_degenerate": [],
+      "separation": 0.5757,
+      "measurable_fraction": 1.0,
+      "untested_by_corpus": false,
+      "passes_bar": false,
+      "direction": "higher in human",
+      "human_mean": 0.4574,
+      "ai_mean": 0.4369
+    },
+    "subordinate_density": {
+      "auc_pooled": 0.5662,
+      "ci95_pooled": [
+        0.5489,
+        0.5839
+      ],
+      "auc_macro": 0.5895,
+      "auc_by_domain": {
+        "abstracts": 0.4945,
+        "books": 0.506,
+        "news": 0.6526,
+        "poetry": 0.7942,
+        "recipes": 0.4272,
+        "reddit": 0.7336,
+        "reviews": 0.6289,
+        "wiki": 0.4792
+      },
+      "domains_dropped_as_degenerate": [],
+      "separation": 0.5895,
+      "measurable_fraction": 1.0,
+      "untested_by_corpus": false,
+      "passes_bar": false,
+      "direction": "higher in AI",
+      "human_mean": 0.0522,
+      "ai_mean": 0.0613
+    }
+  },
+  "spearman": {
+    "sentence_cv": {
+      "sentence_cv": 1.0,
+      "paragraph_cv": 0.017,
+      "lexical_diversity": 0.002,
+      "function_word_ratio": -0.069,
+      "subordinate_density": -0.035
+    },
+    "paragraph_cv": {
+      "sentence_cv": 0.017,
+      "paragraph_cv": 1.0,
+      "lexical_diversity": 0.101,
+      "function_word_ratio": 0.027,
+      "subordinate_density": 0.157
+    },
+    "lexical_diversity": {
+      "sentence_cv": 0.002,
+      "paragraph_cv": 0.101,
+      "lexical_diversity": 1.0,
+      "function_word_ratio": -0.077,
+      "subordinate_density": -0.11
+    },
+    "function_word_ratio": {
+      "sentence_cv": -0.069,
+      "paragraph_cv": 0.027,
+      "lexical_diversity": -0.077,
+      "function_word_ratio": 1.0,
+      "subordinate_density": -0.029
+    },
+    "subordinate_density": {
+      "sentence_cv": -0.035,
+      "paragraph_cv": 0.157,
+      "lexical_diversity": -0.11,
+      "function_word_ratio": -0.029,
+      "subordinate_density": 1.0
+    }
+  },
+  "collinear_pairs": [],
+  "survivors": [
+    "sentence_cv"
+  ],
+  "gate": "phase X -- fewer than two independent metrics survive; nothing left to composite"
+}
