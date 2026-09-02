@@ -1,9 +1,9 @@
 {
-  "name": "humanize",
+  "name": "humanize-rlorenzo",
   "description": "Anti-slop tools for Claude Code: the humanize skill, reviewer subagent, and write-time scoring hook.",
   "owner": {
-    "name": "Kimal Honour Djam",
-    "url": "https://github.com/kimhons"
+    "name": "Rex Lorenzo",
+    "url": "https://github.com/rlorenzo"
   },
   "plugins": [
     {

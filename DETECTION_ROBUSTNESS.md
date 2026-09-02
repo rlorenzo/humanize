@@ -1,7 +1,7 @@
 # Detection Robustness — research synthesis and extended design
 
 **Date:** 2026-04-27
-**Purpose:** Extend the `humanize` framework so academic writing passes AI-detection checks at submission.
+**Purpose:** Extend the `humanize` framework with the statistical signatures the pattern list cannot see, so that genuinely human academic writing is not misread as machine-written.
 **Frame:** This is **not** a guide to disguising AI work. It is a guide to producing genuinely human-authored writing that passes detection because the human is doing the authorship work, with AI as an editing assistant.
 
 ---
@@ -26,7 +26,7 @@
 **Implications:**
 1. **Pangram is the strongest** — perplexity + burstiness tricks do not survive.
 2. **Turnitin is a real risk for academic submission**, especially for ESL writers.
-3. **ESL false-positive rate is ~3-6× higher** than native — francophone-English writers (like Kimal) are over-represented in false flags.
+3. **ESL false-positive rate is ~3-6× higher** than native — francophone-English writers are over-represented in false flags.
 4. **No detector is reliable on text <50 words.** Short-form is naturally harder to classify.
 5. **Watermarking is rare in production** — OpenAI tested but rolled back; some Google models embed it.
 
@@ -136,7 +136,7 @@ It is **NOT legitimate** for:
 - Misrepresenting authorship to bypass legitimate detection.
 - Bypassing AI-disclosure requirements where they exist.
 
-For Kimal's PhD slate, the work IS his — Creighton-acquired primary data, his statistical analyses, his interpretations, his patent (US 63 270 375). AI assists with drafting + editing; Kimal owns and verifies every claim. **AI declarations** in the manuscripts disclose this honestly per AAPM/Wiley/Elsevier 2024 policies. The risk we're managing is false-positive detection of a **substantively human** paper, not concealment of authorship.
+The case this framework is built for: the data, the analyses, and the interpretations are the submitting author's own, AI assists with drafting and editing, and the author verifies every claim. Where journal policy requires it, an AI declaration discloses that assistance rather than hiding it. The risk being managed is false-positive detection of a **substantively human** paper — not concealment of authorship. Outside that case, the layers below do not apply.
 
 ---
 
@@ -155,7 +155,7 @@ Original layers (style):
 
 NEW layers (signature):
   L7 burstiness_check.py            — CV of sentence lengths; flag below 0.55
-  L8 author-corpus voice anchor     — match against Kimal's pre-AI writing
+  L8 author-corpus voice anchor     — match against the author's pre-AI writing
   L9 detector-panel.py              — multi-detector validation; aggregate score
   L10 attestation marks              — verifiable specifics (dates, DOIs, equipment IDs, named people)
   L11 ESL-aware profile              — francophone-English transfer-pattern allowances
@@ -191,11 +191,11 @@ governed by `--fail-on=any|cv|never`.
 
 Maintains a manifest of the author's verified pre-AI human writing:
 
-For Kimal:
-- Master's thesis V2 (2020) — 200+ pages, pre-LLM-era
-- Djam et al. 2020 Springer chapter — co-authored 2018-2020
+Example manifest:
+- A master's thesis (2020) — 200+ pages, pre-LLM-era
+- A co-authored book chapter, written 2018-2020
 - Master's coursework essays
-- His 9-volume textbook series (independent authorship)
+- A long-form independently authored series
 
 Computes the author's signature: vocabulary frequency curve, punctuation patterns, paragraph rhythms. The skill matches new drafts against this signature, not generic "human."
 
@@ -248,7 +248,7 @@ for one group costs less than a bar set on prose unlike theirs, for the group
 already most over-flagged. Read it as a fairness allowance with a known direction
 and an unknown magnitude. If an ESL-annotated corpus appears, re-derive it.
 
-This layer prevents over-correction toward "native EN slang" that Kimal would not naturally produce.
+This layer prevents over-correction toward "native EN slang" that the author would not naturally produce.
 
 ---
 
@@ -269,7 +269,7 @@ draft.md
 [L7 burstiness_check]  ── CV ≥0.55 (or ≥0.50 for ESL profile)
    │
    ▼
-[L8 voice anchor]  ── matches Kimal's pre-AI corpus signature
+[L8 voice anchor]  ── matches the author's pre-AI signature
    │
    ▼
 [L10 attestation marks audit]  ── every claim has: date, DOI, person, number, citation
