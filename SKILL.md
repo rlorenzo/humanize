@@ -10,7 +10,7 @@ description: |
 license: MIT
 compatibility: Works with Claude Code and OpenCode. Scorer requires Python 3.9+.
 metadata:
-  version: "2.0.0"
+  version: "2.0.1"
   extends: https://github.com/blader/humanizer (MIT, synced at v2.11.2)
 allowed-tools:
   - Read
