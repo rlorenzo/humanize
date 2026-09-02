@@ -4,8 +4,8 @@
   "version": "2.0.0",
   "description": "Anti-slop framework: humanize skill, reviewer subagent, and a PostToolUse scoring hook. Extends blader/humanizer.",
   "author": {
-    "name": "Kimal Honour Djam",
-    "url": "https://github.com/kimhons"
+    "name": "Rex Lorenzo",
+    "url": "https://github.com/rlorenzo"
   },
   "keywords": ["writing", "editing", "humanize", "ai-slop", "prose", "academic-writing"],
   "skills": ["./"],

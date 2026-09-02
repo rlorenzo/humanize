@@ -42,8 +42,8 @@ New extensions (#36-44):
 ## Install (Claude Code plugin — recommended)
 
 ```
-/plugin marketplace add kimhons/humanize
-/plugin install humanize@humanize
+/plugin marketplace add rlorenzo/humanize
+/plugin install humanize@humanize-rlorenzo
 ```
 
 The plugin registers the skill, the `humanizer-reviewer` subagent, and the PostToolUse
@@ -53,7 +53,7 @@ hook automatically. To add the optional always-on rule, run `install.sh` too.
 
 ```bash
 # Clone
-git clone https://github.com/kimhons/humanize.git ~/.claude/skills/humanize
+git clone https://github.com/rlorenzo/humanize.git ~/.claude/skills/humanize
 # Activate the agent
 cp ~/.claude/skills/humanize/agents/humanizer-reviewer.md ~/.claude/agents/
 # Install skill + rule, then wire the hook into settings.json (copy the
@@ -64,13 +64,13 @@ bash ~/.claude/skills/humanize/install.sh
 For OpenCode users:
 
 ```bash
-git clone https://github.com/kimhons/humanize.git ~/.config/opencode/skills/humanize
+git clone https://github.com/rlorenzo/humanize.git ~/.config/opencode/skills/humanize
 ```
 
 ## Install (skill only, no git history)
 
 ```bash
-git clone --depth 1 https://github.com/kimhons/humanize.git /tmp/humanize &&
+git clone --depth 1 https://github.com/rlorenzo/humanize.git /tmp/humanize &&
   mkdir -p ~/.claude/skills/humanize &&
   cp -r /tmp/humanize/SKILL.md /tmp/humanize/patterns ~/.claude/skills/humanize/ &&
   rm -rf /tmp/humanize
@@ -265,6 +265,12 @@ marketplace or clone install can pin to a tag.
 
 MIT — see [LICENSE](LICENSE).
 
-## Author
+## Credits
 
-Kimal Honour Djam ([@kimhons](https://github.com/kimhons))
+Original author: Kimal Honour Djam ([@kimhons](https://github.com/kimhons)) — the
+six-layer design, and patterns 36-44.
+
+Patterns 1-35 come from [blader/humanizer](https://github.com/blader/humanizer),
+which draws them from Wikipedia's "Signs of AI writing".
+
+Maintained as a fork by Rex Lorenzo ([@rlorenzo](https://github.com/rlorenzo)).

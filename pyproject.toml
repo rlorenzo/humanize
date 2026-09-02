@@ -6,6 +6,9 @@ description = "Anti-slop framework for Claude Code: skill + scorer + agent + hoo
 authors = [
     {name = "Kimal Honour Djam", email = "kimhons@gmail.com"},
 ]
+maintainers = [
+    {name = "Rex Lorenzo", email = "rexlorenzo@gmail.com"},
+]
 license = {text = "MIT"}
 readme = "README.md"
 requires-python = ">=3.9"
@@ -30,9 +33,9 @@ dependencies = []
 dev = ["pytest>=7.0", "ruff>=0.1.0"]
 
 [project.urls]
-Homepage = "https://github.com/kimhons/humanize"
-Issues = "https://github.com/kimhons/humanize/issues"
-Documentation = "https://github.com/kimhons/humanize/blob/main/README.md"
+Homepage = "https://github.com/rlorenzo/humanize"
+Issues = "https://github.com/rlorenzo/humanize/issues"
+Documentation = "https://github.com/rlorenzo/humanize/blob/main/README.md"
 
 [project.scripts]
 humanize-score = "humanize_anti_slop.humanize_score:main"
