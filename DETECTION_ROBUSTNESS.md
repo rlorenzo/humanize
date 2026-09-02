@@ -167,15 +167,25 @@ Computes:
 - Sentence-token-count distribution (mean, std, CV)
 - Paragraph-length distribution
 - Function-word ratio (the, and, of, to, in)
-- Lexical diversity (TTR — type-token ratio)
+- Lexical diversity (MATTR-50 — moving-average type-token ratio over a 50-word window)
 - Subordinate clause depth (proxy via comma/semicolon density)
 
 Flags if:
-- Sentence CV < 0.55
-- Sentence count below 6 in a 300-word block (uniform pacing)
-- Lexical diversity outside human range (0.40-0.65)
+- Sentence CV < 0.55 (< 0.50 for the ESL profile — see Layer 11 for why that
+  second number is an allowance rather than a measurement)
 
-Output: same JSON shape as humanize_score, with key `signature_score` 0-100.
+That is the whole flag list as of 2.0.0. The lexical-diversity, function-word and
+subordinate-density bands were removed, and `paragraph_cv` with them, after
+measurement against HC3 and RAID showed none of the four separated AI text from
+human text — `lexical_diversity` reverses direction between the two corpora, and
+`paragraph_cv` was untestable on both (85% of HC3 answers are one paragraph, and
+only 9.8% of RAID's human documents run to more than one). Keeping their bands
+was itself the long-standing bug: MATTR-50 runs 0.78-0.85 on ordinary prose
+against an inherited band of 0.40-0.65, so every document flagged.
+
+Output: JSON with `profile`, `metrics`, `targets`, `unbanded` and `flags`. There
+is no `signature_score` and no `verdict`; exit code is 1 when a flag is raised,
+governed by `--fail-on=any|cv|never`.
 
 ### Layer 8 — author-corpus voice anchor
 
@@ -215,13 +225,28 @@ These are not aesthetic — they are evidence. They distinguish substantively hu
 
 ### Layer 11 — ESL-aware profile
 
-Calibrated for francophone-English writers:
+Written for francophone-English writers. "Calibrated" would be the wrong word —
+none of the allowances below were fitted to an ESL corpus, and the burstiness
+offset in particular has never been measured (see below):
 
 - **Allowed**: Latinate vocabulary preference (academic French → English transfer is heavy on Latinate cognates).
 - **Allowed**: Slightly longer sentences (French academic style).
 - **Flagged**: Article omission errors (typical ESL tell, but also AI-generated text doesn't make these).
 - **Allowed**: Occasional French syntactic transfer ("for to do X" structures, sparingly).
 - **Custom threshold**: Burstiness CV target 0.50 (vs 0.55 for native EN), since francophone-English academic writing tends to be more uniform.
+
+**On that 0.50.** It is the one threshold in the tool that never faced the
+pre-registered bar the composite was retired for failing. 0.55 was fitted to HC3
+and confirmed on RAID; 0.50 was not, and neither corpus could test it — both are
+overwhelmingly native English. The supporting evidence is the 3-6× ESL
+false-positive rate in the table above, but that figure describes AI *detectors*,
+not `sentence_cv` on ESL prose, so the step from one to the other, and to 0.05
+specifically, is an inference nobody has checked.
+
+It is kept anyway, on an asymmetry rather than a measurement: a slightly loose bar
+for one group costs less than a bar set on prose unlike theirs, for the group
+already most over-flagged. Read it as a fairness allowance with a known direction
+and an unknown magnitude. If an ESL-annotated corpus appears, re-derive it.
 
 This layer prevents over-correction toward "native EN slang" that Kimal would not naturally produce.
 

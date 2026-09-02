@@ -10,7 +10,7 @@ description: |
 license: MIT
 compatibility: Works with Claude Code and OpenCode. Scorer requires Python 3.9+.
 metadata:
-  version: "1.2.0"
+  version: "2.0.0"
   extends: https://github.com/blader/humanizer (MIT, synced at v2.11.2)
 allowed-tools:
   - Read
@@ -56,8 +56,8 @@ Manual: `/humanize [text]` or `/humanize --profile=academic [text]` or `/humaniz
 5. **Second-pass rewrite.** Apply the audit findings.
 
 6. **Score.** If a CLI is available, run `humanize_score.py` on the result; report the numeric score (0-100, lower = more human).
-   Then run `burstiness_check.py` on the same file and read **only its `sentence_cv` and `paragraph_cv` metrics**, which catch what the pattern list cannot: a draft can score clean on all 44 patterns and still read as machine-written because every sentence is the same length. Want `sentence_cv` at or above 0.55 (0.50 with `--profile=esl`, for non-native speakers) and `paragraph_cv` at or above 0.40.
-   **Ignore its `signature_score` and `verdict` for now.** The two heaviest-weighted checks are uncalibrated and dominate the composite, so human prose still reads as `heavy-AI-signature` regardless of quality: the `lexical_diversity` band (0.40-0.65) was set for whole-document type-token ratio while the code computes MATTR-50, which is length-stable and runs 0.77-0.90 on ordinary prose, and the `function_word_ratio` band (0.40-0.55) sits well above where real prose measures (0.24-0.31). Both need a calibration corpus. Tracked; do not ask the writer to chase that number.
+   Then run `burstiness_check.py` on the same file and read **`sentence_cv`**, which catches what the pattern list cannot: a draft can score clean on all 44 patterns and still read as machine-written because every sentence is the same length. Want `sentence_cv` at or above 0.55 (0.50 with `--profile=esl`, for non-native speakers — that looser bar is an untested allowance, not a separately calibrated threshold). It is the only metric in the tool that carries a threshold, and the only one that raises a flag.
+   **The other four metrics are diagnostics — do not ask the writer to chase them.** `signature_score` and `verdict` were removed in 2.0.0 after the composite was tested against HC3 and RAID: `sentence_cv` is the only metric that cleared the pre-registered bar of 0.65 on both corpora (AUC 0.764 / 0.663). `lexical_diversity` clears it on HC3 alone (0.672) and reverses direction between the two corpora, `function_word_ratio` and `subordinate_density` are flat, and `paragraph_cv` could not be measured by either corpus. They are still printed, because a number is useful to look at even when nothing can be asserted about it.
 
 7. **Output:**
    - Final humanised text

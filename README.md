@@ -142,14 +142,44 @@ sentence is the same length.
 
 ```bash
 $ python ~/.claude/skills/humanize/scripts/burstiness_check.py STAGE3/MANUSCRIPT.md
-sentence_cv:     0.61   (want >= 0.55, or >= 0.50 with --profile=esl)
-paragraph_cv:    0.44   (want >= 0.40)
+profile:         default
+sentences:       42  (mean 18.4 ± 11.2 words, CV 0.610)
+paragraphs:      7   (CV 0.383)
+lexical MATTR50: 0.812
+func-word ratio: 0.472
+subord density:  0.061
+                 (paragraph_cv, MATTR50, func-word ratio and subord density are reported only; no threshold is asserted)
+flags:           none
 ```
 
-Read those two metrics. **Ignore its `signature_score` and `verdict`** — two of the
-five underlying checks are calibrated against different quantities than the ones
-computed, so every document over 50 words currently reports `heavy-AI-signature`
-regardless of quality. The module docstring has the measurements and the fix.
+**Read the sentence CV. It is the only metric here that carries a threshold**
+(want >= 0.55, or >= 0.50 with `--profile=esl` — that offset is an untested
+allowance for non-native writers, not a second calibrated bar). The other four are printed as
+diagnostics with nothing asserted about them.
+
+The composite `signature_score` was tested against two labelled corpora and
+**retired in 2.0.0**. `sentence_cv` is the only one of its five inputs that
+cleared the bar on both — separation AUC against a bar of 0.65, set before any
+result was seen:
+
+| metric | HC3 | RAID | RAID chat-only | |
+|---|---|---|---|---|
+| `sentence_cv` | 0.764 | 0.663 | 0.720 | kept |
+| `lexical_diversity` | 0.672 | 0.575 | 0.582 | retired — reverses sign between corpora |
+| `function_word_ratio` | 0.600 | 0.553 | 0.576 | retired |
+| `subordinate_density` | 0.518 | 0.514 | 0.590 | retired |
+| `paragraph_cv` | — | — | — | retired — untestable on either corpus |
+
+Measured on 4,330 length-matched HC3 documents and 4,867 RAID human/AI pairs
+sharing a source text, over eight domains and eleven generators.
+
+`sentence_cv` separates best against instruction-tuned generators — 0.809 for
+cohere-chat, 0.789 for gpt4, 0.785 for mistral-chat, 0.777 for chatgpt, against
+0.550-0.617 for the weakest base models — which is the regime this tool is
+actually pointed at. It is not a clean base-versus-chat split: cohere, a base
+model, reaches 0.713 and beats two of the chat models. The module docstring
+carries the detail, and
+`scripts/calibration/results/raid_phase1.json` carries the full table.
 
 ### Installing the scorers as commands
 
