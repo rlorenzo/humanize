@@ -13,7 +13,7 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
-## [2.0.0] — 2026-09-01
+## [2.0.0] — 2026-09-02
 
 ### Removed — BREAKING
 
@@ -76,6 +76,41 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   over fewer than two values is undefined, not zero, and 0.0 read as perfect
   uniformity — which flagged every one-sentence file as AI-uniform pacing. This is
   the same degeneracy that made `paragraph_cv` untestable on both corpora.
+
+### Changed — install paths
+
+- **Every install path now points at this fork.** The marketplace-add line, both
+  `git clone` lines and the `--depth 1` clone named the upstream repository, so
+  anyone following this README installed upstream's code rather than this one.
+  Both plugin manifests' owner blocks and the three `pyproject.toml` URLs move
+  with them.
+- **The marketplace is renamed `humanize-rlorenzo`.** The plugin itself is still
+  `humanize`, so `/humanize` and the skill paths are unchanged, but the install
+  command embeds the marketplace id and becomes
+  `/plugin install humanize@humanize-rlorenzo`. Anyone who added the marketplace
+  under its old id needs to re-add it; `/plugin marketplace update` cannot follow
+  a rename.
+- **`pyproject.toml` gains `maintainers`.** `authors` still names Kimal Honour
+  Djam, which is what PEP 621 means by the field, but it also carried the contact
+  address, so publishing this fork would have routed its bug mail to someone who
+  did not ship it. README's `## Author` was doing the same double duty and is now
+  `## Credits`, naming the original author, blader/humanizer and the fork
+  maintainer separately. The `LICENSE` copyright line and the `SKILL.md` credit
+  for patterns 36-44 are untouched: forking transfers maintenance, not authorship.
+
+### Changed — stated purpose
+
+- **`DETECTION_ROBUSTNESS.md` no longer states its purpose as passing detection
+  checks at submission.** The line contradicted the one directly beneath it, the
+  ethical frame in §5 and the honest limits in §8, all of which say the opposite,
+  and it contradicted `README.md`. It now says what the rest of the document
+  already said: the added layers measure statistical signatures the pattern list
+  cannot see, so that genuinely human writing is not misread as machine-written.
+- **The document no longer justifies itself on one person's dissertation.** Six
+  passages named the upstream author, including a §5 paragraph resting the case on
+  his data and patent number and an L8 example manifest that was his CV. These
+  now describe the case the framework is built for, and say where it stops
+  applying.
 
 ### Deprecated
 
@@ -264,7 +299,8 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `humanizer-reviewer` subagent, the PostToolUse hook, and `install.sh`.
 - `DETECTION_ROBUSTNESS.md`, recording what the score does and does not promise.
 
-[Unreleased]: https://github.com/rlorenzo/humanize/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/rlorenzo/humanize/compare/v2.0.0...HEAD
+[2.0.0]: https://github.com/rlorenzo/humanize/compare/v1.2.0...v2.0.0
 [1.2.0]: https://github.com/rlorenzo/humanize/compare/v1.1.1...v1.2.0
 [1.1.1]: https://github.com/rlorenzo/humanize/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/rlorenzo/humanize/compare/v1.0.0...v1.1.0
