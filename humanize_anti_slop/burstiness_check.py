@@ -66,6 +66,7 @@ import math
 import re
 import statistics
 import sys
+from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -358,11 +359,10 @@ def lexical_diversity(words: list[str]) -> float | None:
         return None
     # Cap the work at ~100 windows on long documents; short ones step by 1.
     stride = max(1, (len(words) - MATTR_WINDOW) // 100)
-    ttrs = [
+    return statistics.mean(
         len(set(words[i : i + MATTR_WINDOW])) / MATTR_WINDOW
         for i in range(0, len(words) - MATTR_WINDOW + 1, stride)
-    ]
-    return statistics.mean(ttrs)
+    )
 
 
 def function_word_ratio(words: list[str]) -> float:
@@ -384,11 +384,8 @@ def shannon_word_entropy(words: list[str]) -> float:
     """Shannon entropy of the word distribution. Higher = more vocabulary."""
     if not words:
         return 0.0
-    freq: dict[str, int] = {}
-    for w in words:
-        freq[w] = freq.get(w, 0) + 1
     total = len(words)
-    return -sum((c / total) * math.log2(c / total) for c in freq.values())
+    return -sum((c / total) * math.log2(c / total) for c in Counter(words).values())
 
 
 # ---- Threshold checks ---------------------------------------------------------
@@ -578,22 +575,21 @@ def analyse(text: str, profile: str = "default") -> dict:
     def r3(value: float | None) -> float | None:
         return round(value, 3) if value is not None else None
 
+    def mean1(lengths: list[int]) -> float:
+        return round(statistics.mean(lengths), 1) if lengths else 0
+
     return {
         "profile": profile,
         "metrics": {
             "sentence_count": len(m.sentence_lengths),
             "paragraph_count": len(m.paragraph_lengths),
             "word_count": len(m.words),
-            "sentence_length_mean": round(statistics.mean(m.sentence_lengths), 1)
-            if m.sentence_lengths
-            else 0,
+            "sentence_length_mean": mean1(m.sentence_lengths),
             "sentence_length_stdev": round(statistics.pstdev(m.sentence_lengths), 1)
             if len(m.sentence_lengths) > 1
             else 0,
             "sentence_cv": r3(values["sentence_cv"]),
-            "paragraph_length_mean": round(statistics.mean(m.paragraph_lengths), 1)
-            if m.paragraph_lengths
-            else 0,
+            "paragraph_length_mean": mean1(m.paragraph_lengths),
             "paragraph_cv": r3(values["paragraph_cv"]),
             "lexical_diversity_mattr50": r3(values["lexical_diversity"]),
             "function_word_ratio": r3(values["function_word_ratio"]),
