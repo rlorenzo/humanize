@@ -452,6 +452,14 @@ SYNONYM_GROUPS: list[set[str]] = [
     {"event", "occurrence", "incident", "happening"},
     {"problem", "issue", "challenge", "difficulty", "obstacle"},
 ]
+_SYNONYM_GROUP_RES = [
+    [re.compile(rf"\b{re.escape(term)}\b", re.I) for term in group] for group in SYNONYM_GROUPS
+]
+
+_PARAGRAPH_SPLIT_RE = re.compile(r"\n\s*\n")
+_HEADING_RE = re.compile(r"^\s*#{1,6}\s+(.+)$")
+_WORD_HEADING_RE = re.compile(r"^\s*#{1,6}\s+(\w.*)$")
+_WORD_RE = re.compile(r"[A-Za-z]+")
 
 
 def count_synonym_cycling(text: str) -> int:
@@ -461,10 +469,9 @@ def count_synonym_cycling(text: str) -> int:
     co-occur in the same paragraph. Reports paragraphs that match.
     """
     count = 0
-    for para in re.split(r"\n\s*\n", text):
-        for group in SYNONYM_GROUPS:
-            hits = sum(1 for term in group if re.search(rf"\b{re.escape(term)}\b", para, re.I))
-            if hits >= 3:
+    for para in _PARAGRAPH_SPLIT_RE.split(text):
+        for group in _SYNONYM_GROUP_RES:
+            if sum(1 for term_re in group if term_re.search(para)) >= 3:
                 count += 1
     return count
 
@@ -473,11 +480,10 @@ def count_title_case_headings(text: str) -> int:
     """#17. Lines starting with #/##/###/etc where >50% of content words are capitalised."""
     count = 0
     for line in text.splitlines():
-        m = re.match(r"^\s*#{1,6}\s+(.+)$", line)
+        m = _HEADING_RE.match(line)
         if not m:
             continue
-        content = m.group(1).strip()
-        words = [w for w in re.findall(r"[A-Za-z]+", content) if len(w) > 2]
+        words = [w for w in _WORD_RE.findall(m.group(1)) if len(w) > 2]
         if len(words) < 2:
             continue
         capitalised = sum(1 for w in words if w[0].isupper())
@@ -493,7 +499,7 @@ def _content_words(text: str) -> set[str]:
     into "bo" and "class" into "cla", which is over-stripping rather than
     singularising and gives short tokens more chances to collide.
     """
-    return {w.removesuffix("s") for w in re.findall(r"[A-Za-z]+", text.lower()) if len(w) > 3}
+    return {w.removesuffix("s") for w in _WORD_RE.findall(text.lower()) if len(w) > 3}
 
 
 def _standalone_stub(lines: list[str], j: int) -> str | None:
@@ -538,7 +544,7 @@ def count_fragmented_headers(text: str) -> int:
     count = 0
     lines = text.splitlines()
     for i, line in enumerate(lines):
-        heading = re.match(r"^\s*#{1,6}\s+(\w.*)$", line)
+        heading = _WORD_HEADING_RE.match(line)
         if not heading:
             continue
         j = i + 1
@@ -600,15 +606,27 @@ def count_polysyndetic_tripleting(text: str) -> int:
     against text with a known answer.
     """
     count = 0
-    for para in re.split(r"\n\s*\n", text):
-        triplets = [
-            m
+    for para in _PARAGRAPH_SPLIT_RE.split(text):
+        triplets = sum(
+            1
             for m in _TRIPLET_RE.findall(para)
             if m[1].split()[-1].lower() not in _PARENTHETICAL_ADVERBS
-        ]
-        if len(triplets) >= 3:
+        )
+        if triplets >= 3:
             count += 1
     return count
+
+
+# Pattern ids whose counts come from a function rather than a regex, with weights.
+HEURISTICS = (
+    ("synonym_cycling", count_synonym_cycling, 1.0),
+    ("title_case_headings", count_title_case_headings, 0.7),
+    ("fragmented_headers", count_fragmented_headers, 1.0),
+    ("polysyndetic_tripleting", count_polysyndetic_tripleting, 1.5),
+)
+
+# Upper bound (exclusive) of each score band, lowest first.
+VERDICT_BANDS = ((20, "clean"), (40, "minor_residue"), (60, "needs_editing"))
 
 
 # ---- Profile detection --------------------------------------------------------
@@ -643,32 +661,18 @@ def score_text(text: str, profile: str = "blog") -> dict:
             breakdown[p.name] = hits
             weighted[p.name] = hits * p.adjusted_weight(profile)
 
-    # Heuristic computations
-    sc = count_synonym_cycling(text)
-    if sc:
-        breakdown["synonym_cycling"] = sc
-        weighted["synonym_cycling"] = sc * 1.0
-
-    th = count_title_case_headings(text)
-    if th:
-        breakdown["title_case_headings"] = th
-        weighted["title_case_headings"] = th * 0.7
-
-    fh = count_fragmented_headers(text)
-    if fh:
-        breakdown["fragmented_headers"] = fh
-        weighted["fragmented_headers"] = fh * 1.0
-
-    pt = count_polysyndetic_tripleting(text)
-    if pt:
-        breakdown["polysyndetic_tripleting"] = pt
-        weighted["polysyndetic_tripleting"] = pt * 1.5
+    for name, count, weight in HEURISTICS:
+        hits = count(text)
+        if hits:
+            breakdown[name] = hits
+            weighted[name] = hits * weight
 
     # Normalise: weighted score per 100 words, capped at 100
     raw = sum(weighted.values()) / total_words * 100
     score = min(100.0, raw * 5.0)  # 5× scaling so 20 weighted hits / 100 words = 100
 
-    top_offenders = sorted(weighted.items(), key=lambda kv: -kv[1])[:5]
+    top_offenders = sorted(weighted.items(), key=lambda kv: kv[1], reverse=True)[:5]
+    verdict = next((name for bound, name in VERDICT_BANDS if score < bound), "heavy_slop")
 
     return {
         "score": round(score, 1),
@@ -677,15 +681,7 @@ def score_text(text: str, profile: str = "blog") -> dict:
         "breakdown": breakdown,
         "weighted": {k: round(v, 2) for k, v in weighted.items()},
         "top_offenders": [{"pattern": k, "weighted": round(v, 2)} for k, v in top_offenders],
-        "verdict": (
-            "clean"
-            if score < 20
-            else "minor_residue"
-            if score < 40
-            else "needs_editing"
-            if score < 60
-            else "heavy_slop"
-        ),
+        "verdict": verdict,
     }
 
 
