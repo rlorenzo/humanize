@@ -13,6 +13,21 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- **Bold text is no longer treated as slop by default.** Patterns #15 (boldface
+  overuse) and #16 (inline-header lists) fired on every `**bold**` span, so a
+  reference list written as `- **Label:** explanation` scored as heavy AI residue even
+  when the bold was doing real work. The tell was never the mark: for #15 it is
+  density — bold on every noun, so nothing is emphasised — and for #16 it is a
+  sentence that only restates its own label. #15 now carries profile carve-outs: off in
+  `docs`, halved in `blog`, unchanged in `academic` and `commit`. #16 no longer matches
+  the bold label at all — its regex backreferences the label and fires only when the
+  sentence after the colon repeats it, so `- **Performance:** load times dropped to
+  300ms` is clean while `- **Performance:** Performance has improved` is not. It keeps
+  full weight in every profile, because that redundancy is a problem everywhere. The
+  catalogue text says what the real tell is instead of "bold without a clear reason".
+
 ## [2.0.1] — 2026-09-02
 
 ### Fixed
