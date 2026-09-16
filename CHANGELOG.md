@@ -13,6 +13,8 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.1.0] — 2026-09-16
+
 ### Changed
 
 - **Bold text is no longer treated as slop by default.** Patterns #15 (boldface
@@ -27,6 +29,15 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   300ms` is clean while `- **Performance:** Performance has improved` is not. It keeps
   full weight in every profile, because that redundancy is a problem everywhere. The
   catalogue text says what the real tell is instead of "bold without a clear reason".
+
+- **Internal simplification, no behaviour change.** `score_text` now table-drives the
+  four heuristic counters and the verdict bands instead of four copy-pasted `if` blocks
+  and a nested conditional; the paragraph, heading, word and synonym regexes are
+  compiled once at module level rather than recompiled per line. Scores are identical
+  before and after.
+
+- **The changelog now marks 2.0.0 as uninstallable** at the release heading, so anyone
+  pinning a version sees it before they pin rather than after the install fails.
 
 ## [2.0.1] — 2026-09-02
 
@@ -333,7 +344,8 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `humanizer-reviewer` subagent, the PostToolUse hook, and `install.sh`.
 - `DETECTION_ROBUSTNESS.md`, recording what the score does and does not promise.
 
-[Unreleased]: https://github.com/rlorenzo/humanize/compare/v2.0.1...HEAD
+[Unreleased]: https://github.com/rlorenzo/humanize/compare/v2.1.0...HEAD
+[2.1.0]: https://github.com/rlorenzo/humanize/compare/v2.0.1...v2.1.0
 [2.0.1]: https://github.com/rlorenzo/humanize/compare/v2.0.0...v2.0.1
 [2.0.0]: https://github.com/rlorenzo/humanize/compare/v1.2.0...v2.0.0
 [1.2.0]: https://github.com/rlorenzo/humanize/compare/v1.1.1...v1.2.0
