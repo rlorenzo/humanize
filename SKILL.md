@@ -74,6 +74,8 @@ Manual: `/humanize [text]` or `/humanize --profile=academic [text]` or `/humaniz
 | Rule of three (#10) | flagged | flagged | flagged | flagged |
 | Hedging (#24, #44) | report-grade hedging OK; dissertation-grade flagged | flagged with citations exempted | flagged hard | flagged hard |
 | Title case headings (#17) | follow journal style guide | sentence case | sentence case | sentence case |
+| Boldface overuse (#15) | flagged (low weight) | OK — bolded terms are house style | flagged at half weight | flagged (low weight) |
+| Inline-header lists (#16) | flagged only when the sentence restates the label — the bold label itself is never flagged | same | same | same |
 | Previous-version writing (#30) | flagged | flagged | flagged | OK (commits describe change) |
 | Stat parade without effect size (#39) | flagged | flagged | n/a | n/a |
 | Citation laundering (#36) | flagged hard | flagged | flagged | n/a |
@@ -104,8 +106,8 @@ In summary form:
 12. False ranges (from Big Bang to dark matter)
 13. Passive voice / subjectless fragments (no configuration file needed)
 14. Em-dash overuse — like this — and like this —
-15. Boldface overuse (**every** **noun** **bolded**)
-16. Inline-header lists (**Performance:** Performance has improved)
+15. Boldface overuse (**every** **noun** **bolded** — density is the tell, not the mark)
+16. Inline-header lists whose sentence restates the label (**Performance:** Performance has improved) — the bold label alone is fine
 17. Title Case Headings ("Strategic Negotiations And Partnerships")
 18. Emojis as bullets / decorations (🚀 ✅ 💡)
 19. Curly quotation marks (Unicode ", ", ', ' replacing ASCII " and ')

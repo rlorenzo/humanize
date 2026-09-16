@@ -180,13 +180,30 @@ PATTERNS: list[Pattern] = [
     ),
     # 14 Em-dash overuse
     Pattern(14, "em_dash_overuse", _re(r"—"), weight=0.4, profile_carveouts={"academic": 0.2}),
-    # 15 Boldface overuse — count **bold** phrases per paragraph
-    Pattern(15, "boldface_overuse", _re(r"\*\*[^*]{1,40}\*\*"), weight=0.3),
-    # 16 Inline-header lists
+    # 15 Boldface overuse — count **bold** phrases per paragraph.
+    # Bold is a legitimate emphasis mark; only its density is a tell, so the weight is
+    # low everywhere and off in docs, where bolded terms and labels are house style.
+    Pattern(
+        15,
+        "boldface_overuse",
+        _re(r"\*\*[^*]{1,40}\*\*"),
+        weight=0.3,
+        profile_carveouts={"docs": 0.0, "blog": 0.5},
+    ),
+    # 16 Inline-header lists. The bold label is not the tell and is never flagged: a
+    # bulleted label is a normal way to write a reference list. What is flagged is the
+    # label restating itself ("**Performance:** Performance has improved"), which makes
+    # the list look like structure while carrying one fact per bullet. The backreference
+    # is what does the work; the (?i:) group lets "**User Experience:** The user
+    # experience..." match while keeping the label itself capitalised.
     Pattern(
         16,
         "inline_header_lists",
-        _re(r"^\s*[-*]\s*\*\*[A-Z][^*]+\*\*[: ]", re.MULTILINE),
+        _re(
+            r"^[ \t]*[-*][ \t]+\*\*(?P<label>[A-Z][^*\n]{1,40}?):?\*\*:?[ \t]+"
+            r"(?i:(?:the |a |an )?(?P=label))\b",
+            re.MULTILINE,
+        ),
         weight=1.0,
     ),
     # 17 Title Case Headings (heuristic: heading line where >50% of words start uppercase)

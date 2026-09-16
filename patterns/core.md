@@ -155,7 +155,13 @@ Before returning the rewrite, search for `—` and `–`. Remove each one unless
 
 ### 15. Too much bold text
 
-**Problem:** AI chatbots often bold words and phrases without a clear reason.
+**Problem:** AI chatbots often bold words and phrases without a clear reason. The tell is
+density, not the mark: bold that lands on every noun in a paragraph, so nothing is
+emphasised because everything is. Bold used sparingly, on the one term that carries the
+sentence, is ordinary writing and stays.
+
+*This fork diverges deliberately: scored at a low weight everywhere and disabled in the
+`docs` profile, where bolded terms are house style.*
 **Before:**
 > It blends **OKRs (Objectives and Key Results)**, **KPIs (Key Performance Indicators)**, and visual strategy tools such as the **Business Model Canvas (BMC)** and **Balanced Scorecard (BSC)**.
 **After:**
@@ -163,13 +169,26 @@ Before returning the rewrite, search for `—` and `–`. Remove each one unless
 
 ### 16. Lists with bold mini-headings
 
-**Problem:** AI writing often uses vertical lists in which every item starts with a bold label and a colon.
+**Problem:** AI writing often uses vertical lists in which every item starts with a bold
+label and a colon *and the sentence after the colon only restates the label*. The
+restatement is the whole tell: the list looks like structure while each bullet carries
+one fact, already spent on the label.
+
+*This fork diverges deliberately: the bold label is not flagged at all. Upstream treats
+the label-and-colon form itself as the pattern; here a bolded label is a normal way to
+write a reference list, and only the self-restating sentence after it is flagged. The
+fix is to replace the restatement, not to unbold the label or dissolve the list.*
 **Before:**
 > - **User Experience:** The user experience has been significantly improved with a new interface.
 > - **Performance:** Performance has been enhanced through optimized algorithms.
 > - **Security:** Security has been strengthened with end-to-end encryption.
 **After:**
-> The update improves the interface, speeds up load times through optimized algorithms, and adds end-to-end encryption.
+> - **User experience:** one screen now, instead of the four-step wizard.
+> - **Performance:** cold start dropped from 2s to 300ms.
+> - **Security:** end-to-end encrypted; keys never leave the device.
+
+Prose works too, when the list was only ever three sentences wearing bullets:
+> The update replaces the four-step wizard with one screen, cuts cold start from 2s to 300ms, and encrypts end to end.
 
 ### 17. Title case in headings
 
