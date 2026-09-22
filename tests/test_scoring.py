@@ -1,7 +1,5 @@
 """Tests for humanize_score.py: pattern catalogue, scoring, CLI, and hook mode."""
 
-from __future__ import annotations
-
 import importlib.util
 import json
 import os

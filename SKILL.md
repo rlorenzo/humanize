@@ -8,7 +8,7 @@ description: |
   sample. Final "obviously AI generated" audit pass. Use when editing any prose file or
   before shipping.
 license: MIT
-compatibility: Works with Claude Code and OpenCode. Scorer requires Python 3.9+.
+compatibility: Works with Claude Code and OpenCode. Scorer requires Python 3.14+.
 metadata:
   version: "2.1.0"
   extends: https://github.com/blader/humanizer (MIT, synced at v2.11.2)

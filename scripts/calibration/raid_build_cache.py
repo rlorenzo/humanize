@@ -6,8 +6,6 @@ HTTP Range reads against an 11.8 GB file; see raid_fetch for why the documented
 access paths cannot be used.
 """
 
-from __future__ import annotations
-
 import json
 import os
 from pathlib import Path

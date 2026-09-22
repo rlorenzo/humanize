@@ -38,7 +38,15 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   #44; "let's walk through" to #38. **Scores drop** for text that used these phrases,
   since each hit now carries one weight instead of two or three.
 
+### Changed — Python
+
+- **Python 3.14 or newer is required.** `requires-python`, ruff's target and CI all
+  move to 3.14, the current release; 3.9 reached end of life in October 2025. The
+  hook runs the first `python3` on `PATH`, so a machine whose default is older
+  (macOS ships 3.9) needs a newer Python installed or the hook stays silent.
+
 ### Removed
+
 
 - **`burstiness-check --threshold`.** It was deprecated in 2.0.0 and kept for one
   minor version; passing it is now an argparse error (exit 2). Use `--fail-on`.

@@ -5,8 +5,6 @@ repo its own install destination, so several copies have the same file as source
 and target. That aborted the whole install under `set -e` and installed nothing.
 """
 
-from __future__ import annotations
-
 import shutil
 import subprocess
 from pathlib import Path

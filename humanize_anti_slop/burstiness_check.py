@@ -6,7 +6,7 @@ function-word ratio, and a subordinate-clause-depth proxy. **Diagnostics, not a
 verdict.** Only `sentence_cv` carries a threshold; the rest are reported as
 numbers with nothing asserted about them.
 
-Pure Python, zero dependencies. Compatible with Python 3.9+.
+Pure Python, zero dependencies. Requires Python 3.14+.
 
 Target (the only one):
    sentence_cv          >= 0.55 (>= 0.50 for ESL profile, an untested allowance
@@ -56,8 +56,6 @@ Usage:
    python burstiness_check.py --fail-on=cv FILE.md
    python burstiness_check.py --json FILE.md
 """
-
-from __future__ import annotations
 
 import argparse
 import html

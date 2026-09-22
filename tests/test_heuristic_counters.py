@@ -10,8 +10,6 @@ useless as one that fires on nothing, which is the lesson burstiness_check's
 signature_score taught this project the expensive way.
 """
 
-from __future__ import annotations
-
 import importlib.util
 import sys
 from pathlib import Path
