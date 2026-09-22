@@ -38,6 +38,28 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   #44; "let's walk through" to #38. **Scores drop** for text that used these phrases,
   since each hit now carries one weight instead of two or three.
 
+### Removed
+
+- **`burstiness-check --threshold`.** It was deprecated in 2.0.0 and kept for one
+  minor version; passing it is now an argparse error (exit 2). Use `--fail-on`.
+- **Fallbacks for the pre-1.1.1 `scripts/` layout** in the hook and the reviewer
+  agent's scorer lookup.
+- **Placeholder patterns.** #11, #17, #29 and #41 no longer sit in `PATTERNS` as
+  weight-0 regexes that never match; their ids live in `HEURISTICS` with the
+  functions that count them. Scores are unchanged.
+- **References to `/ship`, `/review-paper` and `/compile-paper`,** slash commands this
+  repository has never shipped, from `README.md`, `SKILL.md` and the reviewer agent.
+
+### Changed — housekeeping
+
+- **The always-on rule is a file,** `rules/10-anti-slop.md`, instead of a heredoc
+  inside `install.sh`, so it can be reviewed and diffed like the rest of the prose.
+- **The hook's last-resort scorer path honours `CLAUDE_HOME`,** as `install.sh`
+  does, so a custom `CLAUDE_HOME` install no longer leaves a hook that finds nothing.
+- **`SKILL.md`'s report template no longer asks for `paragraph_cv >= 0.40`,** a
+  threshold that was retired in 2.0.0.
+- **`CLAUDE.md` describes this project** instead of being an unfilled template.
+
 ## [2.1.0] — 2026-09-16
 
 ### Changed

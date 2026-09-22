@@ -43,7 +43,8 @@ from pathlib import Path
 
 # ---- Pattern definitions (44 patterns) ----------------------------------------
 
-# Each pattern: (id, name, regex, weight, profile_carveouts).
+# 40 patterns are regexes, listed here; the other four (#11, #17, #29, #41) are
+# counted by functions, listed in HEURISTICS.
 # profile_carveouts maps profile -> multiplier (1.0 default; 0.0 disables; 0.5 reduces).
 
 
@@ -160,8 +161,7 @@ PATTERNS: list[Pattern] = [
     ),
     # 10 Rule of three (any "A, B, and C" — coarse; we count occurrences per paragraph in scoring)
     Pattern(10, "rule_of_three", _re(r"\b\w+,\s*\w+,?\s*and\s+\w+\b"), weight=0.5),
-    # 11 Synonym cycling — heuristic, not regex; flagged if same noun has 3+ synonym variants in one paragraph
-    Pattern(11, "synonym_cycling", _re(r"$^"), weight=0.0),  # placeholder; computed separately
+    # 11 Synonym cycling: counted by a function, see HEURISTICS
     # 12 False ranges
     Pattern(
         12,
@@ -207,8 +207,7 @@ PATTERNS: list[Pattern] = [
         ),
         weight=1.0,
     ),
-    # 17 Title Case Headings (heuristic: heading line where >50% of words start uppercase)
-    Pattern(17, "title_case_headings", _re(r"$^"), weight=0.0),  # placeholder
+    # 17 Title Case Headings: counted by a function, see HEURISTICS
     # 18 Emojis as bullets / decorations
     Pattern(18, "emojis", _re("[\U0001f300-\U0001faff☀-➿]"), weight=1.5),
     # 19 Curly quotes
@@ -304,8 +303,7 @@ PATTERNS: list[Pattern] = [
         ),
         weight=1.5,
     ),
-    # 29 Fragmented headers — heuristic, computed separately
-    Pattern(29, "fragmented_headers", _re(r"$^"), weight=0.0),  # placeholder
+    # 29 Fragmented headers: counted by a function, see HEURISTICS
     # ---- Patterns 30-35 (upstream) ----
     # 30 Previous-version writing (docs describing the old implementation, not current behavior)
     Pattern(
@@ -419,8 +417,7 @@ PATTERNS: list[Pattern] = [
         _re(r"\b(currently|at present|at the time of writing|as of (now|today))\b"),
         weight=0.6,
     ),
-    # 41 Polysyndetic tripleting — count "X, Y, and Z" patterns per paragraph
-    Pattern(41, "polysyndetic_tripleting", _re(r"$^"), weight=0.0),  # computed separately
+    # 41 Polysyndetic tripleting: counted by a function, see HEURISTICS
     # 42 AI-flavoured commit verbs
     Pattern(
         42,
@@ -634,12 +631,12 @@ def count_polysyndetic_tripleting(text: str) -> int:
     return count
 
 
-# Pattern ids whose counts come from a function rather than a regex, with weights.
+# Patterns whose counts come from a function rather than a regex: (id, name, count, weight).
 HEURISTICS = (
-    ("synonym_cycling", count_synonym_cycling, 1.0),
-    ("title_case_headings", count_title_case_headings, 0.7),
-    ("fragmented_headers", count_fragmented_headers, 1.0),
-    ("polysyndetic_tripleting", count_polysyndetic_tripleting, 1.5),
+    (11, "synonym_cycling", count_synonym_cycling, 1.0),
+    (17, "title_case_headings", count_title_case_headings, 0.7),
+    (29, "fragmented_headers", count_fragmented_headers, 1.0),
+    (41, "polysyndetic_tripleting", count_polysyndetic_tripleting, 1.5),
 )
 
 # Upper bound (exclusive) of each score band, lowest first.
@@ -676,14 +673,12 @@ def score_text(text: str, profile: str = "blog") -> dict:
     total_words = max(len(text.split()), 1)
 
     for p in PATTERNS:
-        if p.weight == 0:
-            continue
         hits = len(p.regex.findall(text))
         if hits:
             breakdown[p.name] = hits
             weighted[p.name] = hits * p.adjusted_weight(profile)
 
-    for name, count, weight in HEURISTICS:
+    for _pid, name, count, weight in HEURISTICS:
         hits = count(text)
         if hits:
             breakdown[name] = hits

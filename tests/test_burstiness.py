@@ -621,19 +621,12 @@ def test_cli_clean_file_exits_zero(tmp_path, capsys):
     assert "flags:           none" in capsys.readouterr().out
 
 
-def test_cli_threshold_is_accepted_but_deprecated(tmp_path, capsys):
-    """.github/smoke-console-scripts.sh passes --threshold 100; it must not die.
-
-    The flag is accepted and ignored for one minor version, with a warning on
-    stderr, rather than removed -- an unrecognised argument would exit 2 and
-    break that CI job.
-    """
+def test_cli_retired_threshold_flag_is_rejected(tmp_path):
     target = tmp_path / "draft.md"
     target.write_text(UNIFORM, encoding="utf-8")
-    assert bc.main([str(target), "--threshold", "100"]) == 1
-    captured = capsys.readouterr()
-    assert "--threshold is deprecated" in captured.err
-    assert "signature_score" not in captured.out
+    with pytest.raises(SystemExit) as exc:
+        bc.main([str(target), "--threshold", "100"])
+    assert exc.value.code == 2
 
 
 def test_cli_missing_file_exits_two(tmp_path, capsys):

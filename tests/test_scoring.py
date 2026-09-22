@@ -48,10 +48,9 @@ EXEMPLARS = {
 
 
 def test_pattern_ids_are_1_to_44_with_unique_names():
-    pids = [p.pid for p in hs.PATTERNS]
-    names = [p.name for p in hs.PATTERNS]
-    assert pids == list(range(1, 45))
-    assert len(set(names)) == 44
+    catalogue = [(p.pid, p.name) for p in hs.PATTERNS] + [h[:2] for h in hs.HEURISTICS]
+    assert sorted(pid for pid, _ in catalogue) == list(range(1, 45))
+    assert len({name for _, name in catalogue}) == 44
 
 
 @pytest.mark.parametrize("pid", sorted(EXEMPLARS))
@@ -133,7 +132,7 @@ def test_citation_in_a_later_sentence_does_not_count(end):
 )
 def test_a_phrase_is_counted_by_one_pattern_only(phrase, name):
     # These phrases each sat in two pattern lists, so one phrase scored twice.
-    regex_hits = [p.name for p in hs.PATTERNS if p.weight and p.regex.search(phrase)]
+    regex_hits = [p.name for p in hs.PATTERNS if p.regex.search(phrase)]
     assert regex_hits == [name]
 
 

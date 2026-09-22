@@ -629,23 +629,7 @@ def main(argv: list[str] | None = None) -> int:
             "flag is raised (cv), or never."
         ),
     )
-    parser.add_argument(
-        "--threshold",
-        type=float,
-        default=None,
-        help=argparse.SUPPRESS,  # deprecated; accepted for one minor version
-    )
     args = parser.parse_args(argv)
-
-    if args.threshold is not None:
-        # Kept accepted rather than removed so existing callers do not die on an
-        # unrecognised argument -- .github/smoke-console-scripts.sh passes
-        # --threshold 100 as its CI gate. Remove after one minor version.
-        print(
-            "warning: --threshold is deprecated and ignored; signature_score was "
-            "retired. Use --fail-on=any|cv|never.",
-            file=sys.stderr,
-        )
 
     path = Path(args.path)
     if not path.is_file():

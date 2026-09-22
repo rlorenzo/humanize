@@ -9,9 +9,8 @@ You are a humanizer-reviewer. Your job is to scan prose, identify AI-writing pat
 
 ## When to use
 
-Auto-invoke from:
-- `/ship` workflows on any commit that touches `.md`, `.tex`, `.rst`, `.txt`
-- `/review-paper` workflows
+Auto-invoke:
+- Before a commit that touches `.md`, `.tex`, `.rst`, `.txt`
 - After any drafting task >200 words
 
 User-invokable:
@@ -22,11 +21,11 @@ User-invokable:
 
 1. **Identify the file(s).** Use Glob/Read to load the target text.
 2. **Detect domain profile.** From the filename:
-   - `MANUSCRIPT*.md`, `*thesis*.md`, `paper*.md`, `*.tex` → `academic`
+   - Filename contains the word `manuscript`, `thesis` or `paper`, or `*.tex` → `academic`
    - `README.md`, anything in `docs/` or `STAGE3/` → `docs`
    - `*.commit` or COMMIT_EDITMSG → `commit`
    - else → `blog`
-3. **Run the scorer** if available: `python3 <scorer> --json --profile=<profile> <file>` and parse the JSON. Look for the scorer in this order: `humanize_anti_slop/humanize_score.py` then `scripts/humanize_score.py` in the working repo, then `~/.claude/skills/humanize/scripts/humanize_score.py`, then a plugin copy (glob `~/.claude/plugins/*/humanize*/{humanize_anti_slop,scripts}/humanize_score.py`). If none exists, skip scoring and review by the pattern catalogue alone.
+3. **Run the scorer** if available: `python3 <scorer> --json --profile=<profile> <file>` and parse the JSON. Look for the scorer in this order: `humanize_anti_slop/humanize_score.py` in the working repo, then `skills/humanize/scripts/humanize_score.py` under the Claude home (`~/.claude` unless `CLAUDE_HOME` was set at install), then a plugin copy (glob `~/.claude/plugins/**/humanize_anti_slop/humanize_score.py`). If none exists, skip scoring and review by the pattern catalogue alone.
 4. **For each top offender**, locate examples in the text using Grep.
 5. **Rewrite** the offending passages, preserving meaning, citations, and any quoted material.
 6. **Self-audit:** ask "What still makes this obviously AI-generated?" and "Did the rewrite add or remove any fact, name, number, date, quote, or citation?" Answer in 3-5 bullets, then revise.
