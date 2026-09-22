@@ -28,6 +28,16 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `wallpaper.md` and `hypothesis.md` to `academic`. Directories now match as whole
   path parts and `manuscript`/`thesis`/`paper` as words in the filename.
 
+### Changed
+
+- **A phrase is counted by one pattern, not two.** Eleven phrases sat in two regex
+  lists, so "serves as a testament to the evolving landscape" scored #1, #7 and #8
+  together. Each now belongs to one pattern: "serves as", "stands as" and "represents
+  a" to #8 (copula avoidance); "testament", "pivotal", "landscape" and "fostering" to
+  #7; "underscoring" to #3; "it could be argued that" and "one might suggest that" to
+  #44; "let's walk through" to #38. **Scores drop** for text that used these phrases,
+  since each hit now carries one weight instead of two or three.
+
 ## [2.1.0] — 2026-09-16
 
 ### Changed

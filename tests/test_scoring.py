@@ -114,6 +114,28 @@ def test_citation_in_a_later_sentence_does_not_count(end):
     assert hs.score_text(text)["breakdown"].get("citation_laundering", 0) == 1
 
 
+@pytest.mark.parametrize(
+    "phrase,name",
+    [
+        ("It serves as a hub.", "copula_avoidance"),
+        ("It stands as a reminder.", "copula_avoidance"),
+        ("This represents a significant advance.", "copula_avoidance"),
+        ("It is a testament to them.", "ai_vocabulary"),
+        ("The evolving landscape changed.", "ai_vocabulary"),
+        ("Marking a pivotal moment for us.", "ai_vocabulary"),
+        ("Underscoring its importance here.", "superficial_ing"),
+        ("Fostering growth matters.", "ai_vocabulary"),
+        ("It could be argued that it works.", "dissertation_hedging"),
+        ("One might suggest that it works.", "dissertation_hedging"),
+        ("Let's walk through the setup.", "tutorial_scaffolding"),
+    ],
+)
+def test_a_phrase_is_counted_by_one_pattern_only(phrase, name):
+    # These phrases each sat in two pattern lists, so one phrase scored twice.
+    regex_hits = [p.name for p in hs.PATTERNS if p.weight and p.regex.search(phrase)]
+    assert regex_hits == [name]
+
+
 def test_formulaic_sayings_requires_copula():
     text = "The architecture of the plugin is described in three files."
     assert "formulaic_sayings" not in hs.score_text(text)["breakdown"]

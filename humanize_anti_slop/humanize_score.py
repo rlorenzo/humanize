@@ -65,14 +65,15 @@ def _re(p: str, flags: int = re.IGNORECASE) -> re.Pattern[str]:
 
 PATTERNS: list[Pattern] = [
     # 1 Significance inflation
+    # Each phrase is counted by one pattern only. "serves as", "stands as" and
+    # "represents a" belong to #8; "testament", "pivotal" and "landscape" to #7;
+    # "underscoring" to #3.
     Pattern(
         1,
         "significance_inflation",
         _re(
-            r"\b(stands? as|serves? as|is a testament|marking a pivotal moment|"
-            r"underscoring (its )?(importance|significance)|reflects? (a )?broader|"
-            r"setting the stage for|indelible mark|deeply rooted|evolving landscape|"
-            r"focal point|key turning point|represents? a shift)\b"
+            r"\b(reflects? (a )?broader|setting the stage for|indelible mark|"
+            r"deeply rooted|focal point|key turning point)\b"
         ),
         weight=1.5,
     ),
@@ -91,7 +92,7 @@ PATTERNS: list[Pattern] = [
         "superficial_ing",
         _re(
             r"\b(highlighting|underscoring|emphasizing|symbolizing|reflecting|"
-            r"contributing to|cultivating|fostering|encompassing|showcasing) \b"
+            r"contributing to|cultivating|encompassing|showcasing) \b"
         ),
         weight=1.2,
     ),
@@ -257,10 +258,7 @@ PATTERNS: list[Pattern] = [
     Pattern(
         24,
         "excessive_hedging",
-        _re(
-            r"\b(could potentially possibly|might (potentially )?have some|"
-            r"may possibly|it could be argued that|one might suggest that)\b"
-        ),
+        _re(r"\b(could potentially possibly|might (potentially )?have some|may possibly)\b"),
         weight=1.5,
     ),
     # 25 Generic positive conclusions
@@ -299,7 +297,7 @@ PATTERNS: list[Pattern] = [
         28,
         "signposting",
         _re(
-            r"\b(let['‘’]s (dive in|explore|break this down|walk through|take a look)|"
+            r"\b(let['‘’]s (dive in|explore|break this down|take a look)|"
             r"here['‘’]s what you need to know|now let['‘’]s look at|"
             r"without further ado|heads up|quick note|before I forget|"
             r"one thing that bit me)\b"
@@ -390,8 +388,7 @@ PATTERNS: list[Pattern] = [
         37,
         "manuscript_boilerplate",
         _re(
-            r"\b(to the best of our knowledge|fills a critical gap|"
-            r"represents a significant advance|of paramount importance|"
+            r"\b(to the best of our knowledge|fills a critical gap|of paramount importance|"
             r"constitutes the first comprehensive|lays the foundation for)\b"
         ),
         weight=2.5,
