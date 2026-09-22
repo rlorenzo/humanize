@@ -73,6 +73,47 @@ def test_polysyndetic_tripleting_needs_three_triplets_in_one_paragraph():
     )
 
 
+@pytest.mark.parametrize(
+    "text",
+    ["It is not just fast, but cheap.", "This is not only a parser but a linter."],
+)
+def test_negative_parallelism_matches_real_sentences(text):
+    # The regex once required a literal "X" where the first clause goes.
+    assert hs.score_text(text)["breakdown"].get("negative_parallelism", 0) >= 1
+
+
+@pytest.mark.parametrize(
+    "name,text",
+    [
+        ("negative_parallelism", "It\u2019s not just about speed."),
+        ("chatbot_artifacts", "You\u2019re absolutely right."),
+        ("sycophantic", "That\u2019s a great idea."),
+        ("tutorial_scaffolding", "Let\u2019s walk through the setup."),
+    ],
+)
+def test_curly_apostrophes_match_like_straight_ones(name, text):
+    assert hs.score_text(text)["breakdown"].get(name, 0) >= 1
+    assert hs.score_text(text.replace("\u2019", "'"))["breakdown"].get(name, 0) >= 1
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Studies show this works (Smith et al., 2020).",
+        "Studies show this works (Smith et al. 2020).",
+        "Studies show this works [12].",
+    ],
+)
+def test_cited_claims_are_not_citation_laundering(text):
+    assert "citation_laundering" not in hs.score_text(text)["breakdown"]
+
+
+@pytest.mark.parametrize("end", [".", "!", "?"])
+def test_citation_in_a_later_sentence_does_not_count(end):
+    text = f"Studies show this works{end} We ran it again in 2021."
+    assert hs.score_text(text)["breakdown"].get("citation_laundering", 0) == 1
+
+
 def test_formulaic_sayings_requires_copula():
     text = "The architecture of the plugin is described in three files."
     assert "formulaic_sayings" not in hs.score_text(text)["breakdown"]
@@ -106,6 +147,15 @@ def test_commit_profile_zeroes_citation_laundering_weight():
         ("notes.commit", "commit"),
         ("COMMIT_EDITMSG", "commit"),
         ("post.md", "blog"),
+        ("my-thesis.md", "academic"),
+        ("paper_draft.md", "academic"),
+        ("hypothesis.md", "blog"),
+        ("wallpaper.md", "blog"),
+        ("paperwork.md", "blog"),
+        ("docs/guide.md", "docs"),
+        ("./docs/guide.md", "docs"),
+        ("/repo/docs/guide.md", "docs"),
+        ("STAGE3/notes.md", "docs"),
     ],
 )
 def test_detect_profile(filename, profile):

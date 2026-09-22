@@ -13,6 +13,21 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Pattern #9 (negative parallelism) never matched real text.** Its regex required a
+  literal `X` where the first clause goes, so "not just fast, but cheap" scored 0.
+- **Curly apostrophes defeated every contraction pattern.** The class meant to accept
+  `'`, `‘` and `’` held three straight apostrophes, so "It’s not just about…" and
+  "You’re absolutely right" went uncounted in #9, #20, #22, #28, #33, #34 and #38.
+- **Cited claims were flagged as citation laundering (#36).** The period in "et al."
+  ended the look-ahead before it reached the year, and numeric citations (`[12]`)
+  were never recognised.
+- **Profile detection misread paths.** A relative `docs/guide.md` scored as `blog`
+  because only `/docs/` with a leading slash counted, and substring matching sent
+  `wallpaper.md` and `hypothesis.md` to `academic`. Directories now match as whole
+  path parts and `manuscript`/`thesis`/`paper` as words in the filename.
+
 ## [2.1.0] — 2026-09-16
 
 ### Changed

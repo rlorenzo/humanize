@@ -41,8 +41,8 @@ Manual: `/humanize [text]` or `/humanize --profile=academic [text]` or `/humaniz
 ## Process (mandatory)
 
 1. **Detect domain profile.** Inspect file path / filename:
-   - `MANUSCRIPT*.md`, `*thesis*.md`, `paper*.md`, `*.tex` → `academic`
-   - `README.md`, `*docs*`, `STAGE3/*.md` (technical docs) → `docs`
+   - Filename contains the word `manuscript`, `thesis` or `paper` (`MANUSCRIPT_v2.md`, `my-thesis.md`), or `*.tex` → `academic`
+   - `README.md`, anything under a `docs/` or `STAGE3/` directory (technical docs) → `docs`
    - `*.commit`, COMMIT_EDITMSG → `commit`
    - Anything else → `blog`
    - User can override with `--profile=`.

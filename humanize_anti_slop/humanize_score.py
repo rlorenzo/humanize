@@ -25,8 +25,8 @@ Usage:
    echo '{"tool_input":{"file_path":"FILE.md"}}' | python humanize_score.py --hook
 
 Profile detection (auto unless --profile= is given):
-   MANUSCRIPT*.md, *thesis*.md, *.tex     -> academic
-   README.md, docs/*, STAGE3/*.md         -> docs
+   manuscript/thesis/paper in name, *.tex -> academic
+   README.md, docs/*, STAGE3/*            -> docs
    .git/COMMIT_EDITMSG, *.commit          -> commit
    else                                   -> blog
 """
@@ -153,7 +153,7 @@ PATTERNS: list[Pattern] = [
         9,
         "negative_parallelism",
         _re(
-            r"\b(it[''']s not (just|only|merely) about|not (just|only|merely) X[, ]+but|, no \w+\.)"
+            r"\b(it['‘’]s not (just|only|merely) about|not (just|only|merely) [^.,;!?\n]{1,40},?\s+but\b|, no \w+\.)"
         ),
         weight=1.2,
     ),
@@ -218,7 +218,7 @@ PATTERNS: list[Pattern] = [
         "chatbot_artifacts",
         _re(
             r"\b(I hope this helps|let me know if|here is (a|an|the)|of course!|"
-            r"certainly!|you[''']re absolutely right|would you like (me to)?|happy to help)\b"
+            r"certainly!|you['‘’]re absolutely right|would you like (me to)?|happy to help)\b"
         ),
         weight=2.0,
     ),
@@ -238,7 +238,7 @@ PATTERNS: list[Pattern] = [
         22,
         "sycophantic",
         _re(
-            r"\b(great question!|excellent point|that[''']s a (great|fantastic|wonderful)|brilliant observation)\b"
+            r"\b(great question!|excellent point|that['‘’]s a (great|fantastic|wonderful)|brilliant observation)\b"
         ),
         weight=2.0,
     ),
@@ -299,8 +299,8 @@ PATTERNS: list[Pattern] = [
         28,
         "signposting",
         _re(
-            r"\b(let[''']s (dive in|explore|break this down|walk through|take a look)|"
-            r"here[''']s what you need to know|now let[''']s look at|"
+            r"\b(let['‘’]s (dive in|explore|break this down|walk through|take a look)|"
+            r"here['‘’]s what you need to know|now let['‘’]s look at|"
             r"without further ado|heads up|quick note|before I forget|"
             r"one thing that bit me)\b"
         ),
@@ -343,8 +343,8 @@ PATTERNS: list[Pattern] = [
         33,
         "fake_candid_openers",
         _re(
-            r"(?:^|[.!?]\s+|\n\s*)(Honestly\?|Look,|Here[''']s the thing|"
-            r"The thing is,|Let[''']s be honest|Real talk)"
+            r"(?:^|[.!?]\s+|\n\s*)(Honestly\?|Look,|Here['‘’]s the thing|"
+            r"The thing is,|Let['‘’]s be honest|Real talk)"
         ),
         weight=1.2,
     ),
@@ -353,8 +353,8 @@ PATTERNS: list[Pattern] = [
         34,
         "shadowboxing",
         _re(
-            r"\b(this isn[''']t (mainly|really) about|this is not (about|to say)|"
-            r"I[''']m not (saying|arguing)|don[''']t get me wrong|"
+            r"\b(this isn['‘’]t (mainly|really) about|this is not (about|to say)|"
+            r"I['‘’]m not (saying|arguing)|don['‘’]t get me wrong|"
             r"some might say[^.!?]{0,60}but)\b"
         ),
         weight=1.0,
@@ -377,7 +377,10 @@ PATTERNS: list[Pattern] = [
         "citation_laundering",
         _re(
             r"\b(studies (have )?(show|shows|shown|suggest|reported|indicate)|"
-            r"research (suggests|indicates|has shown)|the literature (reports|suggests))\b(?![^.]*\d{4})"
+            r"research (suggests|indicates|has shown)|the literature (reports|suggests))\b"
+            # Cited if a year or a numeric reference follows in the same sentence.
+            # "et al." is skipped over so its period does not end the sentence.
+            r"(?!(?:[^.!?]|\bet al\.)*(?:\d{4}|\[\d+))"
         ),
         weight=2.0,
         profile_carveouts={"academic": 2.5, "commit": 0.0},
@@ -399,8 +402,8 @@ PATTERNS: list[Pattern] = [
         38,
         "tutorial_scaffolding",
         _re(
-            r"\b(let[''']s walk through|let[''']s start with|here[''']s the high-level|"
-            r"after which we[''']ll|in this section[, ]+we will)\b"
+            r"\b(let['‘’]s walk through|let['‘’]s start with|here['‘’]s the high-level|"
+            r"after which we['‘’]ll|in this section[, ]+we will)\b"
         ),
         weight=1.2,
     ),
@@ -649,14 +652,19 @@ VERDICT_BANDS = ((20, "clean"), (40, "minor_residue"), (60, "needs_editing"))
 # ---- Profile detection --------------------------------------------------------
 
 
+# A whole word in the filename, so "my_thesis.md" and "paper-draft.md" match but
+# "hypothesis.md", "wallpaper.md" and "paperwork.md" do not.
+_ACADEMIC_NAME_RE = re.compile(r"(?:^|[^a-z])(?:manuscript|thesis|paper)s?(?![a-z])")
+
+
 def detect_profile(path: Path) -> str:
     name = path.name.lower()
-    full = str(path).lower().replace("\\", "/")
+    dirs = {part.lower() for part in path.parts[:-1]}
     if name == "commit_editmsg" or name.endswith(".commit"):
         return "commit"
-    if any(x in name for x in ("manuscript", "thesis", "paper")) or name.endswith(".tex"):
+    if _ACADEMIC_NAME_RE.search(name) or name.endswith(".tex"):
         return "academic"
-    if name == "readme.md" or "/docs/" in full or "/stage3/" in full:
+    if name == "readme.md" or dirs & {"docs", "stage3"}:
         return "docs"
     return "blog"
 
