@@ -1,7 +1,7 @@
 {
   "name": "humanize",
   "displayName": "Humanize",
-  "version": "2.1.0",
+  "version": "3.0.0",
   "description": "Anti-slop framework: humanize skill, reviewer subagent, and a PostToolUse scoring hook. Extends blader/humanizer.",
   "author": {
     "name": "Rex Lorenzo",
