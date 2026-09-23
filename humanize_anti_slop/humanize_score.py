@@ -92,7 +92,7 @@ PATTERNS: list[Pattern] = [
         "superficial_ing",
         _re(
             r"\b(highlighting|underscoring|emphasizing|symbolizing|reflecting|"
-            r"contributing to|cultivating|encompassing|showcasing) \b"
+            r"contributing to|cultivating|encompassing|showcasing)\s+\b"
         ),
         weight=1.2,
     ),

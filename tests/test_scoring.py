@@ -124,6 +124,7 @@ def test_citation_in_a_later_sentence_does_not_count(end):
         ("The evolving landscape changed.", "ai_vocabulary"),
         ("Marking a pivotal moment for us.", "ai_vocabulary"),
         ("Underscoring its importance here.", "superficial_ing"),
+        ("Underscoring\nits importance here.", "superficial_ing"),
         ("Fostering growth matters.", "ai_vocabulary"),
         ("It could be argued that it works.", "dissertation_hedging"),
         ("One might suggest that it works.", "dissertation_hedging"),
