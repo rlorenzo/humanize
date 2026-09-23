@@ -41,8 +41,8 @@ Manual: `/humanize [text]` or `/humanize --profile=academic [text]` or `/humaniz
 ## Process (mandatory)
 
 1. **Detect domain profile.** Inspect file path / filename:
-   - `MANUSCRIPT*.md`, `*thesis*.md`, `paper*.md`, `*.tex` → `academic`
-   - `README.md`, `*docs*`, `STAGE3/*.md` (technical docs) → `docs`
+   - Filename contains the word `manuscript`, `thesis` or `paper` (`MANUSCRIPT_v2.md`, `my-thesis.md`), or `*.tex` → `academic`
+   - `README.md`, anything under a `docs/` or `STAGE3/` directory (technical docs) → `docs`
    - `*.commit`, COMMIT_EDITMSG → `commit`
    - Anything else → `blog`
    - User can override with `--profile=`.
@@ -310,18 +310,17 @@ Then revise.
 ## Score
 humanize_score: NN/100 (lower = more human)
 top offenders: [pattern A, pattern B, pattern C]
-sentence_cv / paragraph_cv: N.NN / N.NN (higher = more human; want >=0.55 / >=0.40)
+sentence_cv: N.NN (higher = more human; want >=0.55)
 
 ## Summary of changes
 - [biggest change 1]
 - [biggest change 2]
 ```
 
-## Integration with other skills
+## Integration
 
-- `/ship` calls this skill before commit on any prose-heavy diff.
-- `/review-paper` invokes the `humanizer-reviewer` agent (separate file) for deeper review.
-- `/compile-paper` runs `humanize_score.py` as a pre-compile gate; if score > 60, blocks compilation with a warning.
+- For a deeper second pass, hand the file to the `humanizer-reviewer` agent.
+- `humanize_score.py` exits non-zero above `--threshold` (default 60), so it can gate a commit or build step.
 - The PostToolUse hook (`hooks/humanize-post-write.sh`) runs only `humanize_score.py`, because it fires on every write and the statistical metrics need a full draft to mean anything. Run `burstiness_check.py` by hand at step 6.
 
 ## Reference

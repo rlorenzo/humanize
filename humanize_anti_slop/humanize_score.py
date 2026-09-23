@@ -25,8 +25,8 @@ Usage:
    echo '{"tool_input":{"file_path":"FILE.md"}}' | python humanize_score.py --hook
 
 Profile detection (auto unless --profile= is given):
-   MANUSCRIPT*.md, *thesis*.md, *.tex     -> academic
-   README.md, docs/*, STAGE3/*.md         -> docs
+   manuscript/thesis/paper in name, *.tex -> academic
+   README.md, docs/*, STAGE3/*            -> docs
    .git/COMMIT_EDITMSG, *.commit          -> commit
    else                                   -> blog
 """
@@ -43,7 +43,8 @@ from pathlib import Path
 
 # ---- Pattern definitions (44 patterns) ----------------------------------------
 
-# Each pattern: (id, name, regex, weight, profile_carveouts).
+# 40 patterns are regexes, listed here; the other four (#11, #17, #29, #41) are
+# counted by functions, listed in HEURISTICS.
 # profile_carveouts maps profile -> multiplier (1.0 default; 0.0 disables; 0.5 reduces).
 
 
@@ -65,14 +66,15 @@ def _re(p: str, flags: int = re.IGNORECASE) -> re.Pattern[str]:
 
 PATTERNS: list[Pattern] = [
     # 1 Significance inflation
+    # Each phrase is counted by one pattern only. "serves as", "stands as" and
+    # "represents a" belong to #8; "testament", "pivotal" and "landscape" to #7;
+    # "underscoring" to #3.
     Pattern(
         1,
         "significance_inflation",
         _re(
-            r"\b(stands? as|serves? as|is a testament|marking a pivotal moment|"
-            r"underscoring (its )?(importance|significance)|reflects? (a )?broader|"
-            r"setting the stage for|indelible mark|deeply rooted|evolving landscape|"
-            r"focal point|key turning point|represents? a shift)\b"
+            r"\b(reflects? (a )?broader|setting the stage for|indelible mark|"
+            r"deeply rooted|focal point|key turning point)\b"
         ),
         weight=1.5,
     ),
@@ -91,7 +93,7 @@ PATTERNS: list[Pattern] = [
         "superficial_ing",
         _re(
             r"\b(highlighting|underscoring|emphasizing|symbolizing|reflecting|"
-            r"contributing to|cultivating|fostering|encompassing|showcasing) \b"
+            r"contributing to|cultivating|encompassing|showcasing)\s+\b"
         ),
         weight=1.2,
     ),
@@ -153,14 +155,13 @@ PATTERNS: list[Pattern] = [
         9,
         "negative_parallelism",
         _re(
-            r"\b(it[''']s not (just|only|merely) about|not (just|only|merely) X[, ]+but|, no \w+\.)"
+            r"\b(it['‘’]s not (just|only|merely) about|not (just|only|merely) [^.,;!?\n]{1,40},?\s+but\b|, no \w+\.)"
         ),
         weight=1.2,
     ),
     # 10 Rule of three (any "A, B, and C" — coarse; we count occurrences per paragraph in scoring)
     Pattern(10, "rule_of_three", _re(r"\b\w+,\s*\w+,?\s*and\s+\w+\b"), weight=0.5),
-    # 11 Synonym cycling — heuristic, not regex; flagged if same noun has 3+ synonym variants in one paragraph
-    Pattern(11, "synonym_cycling", _re(r"$^"), weight=0.0),  # placeholder; computed separately
+    # 11 Synonym cycling: counted by a function, see HEURISTICS
     # 12 False ranges
     Pattern(
         12,
@@ -206,8 +207,7 @@ PATTERNS: list[Pattern] = [
         ),
         weight=1.0,
     ),
-    # 17 Title Case Headings (heuristic: heading line where >50% of words start uppercase)
-    Pattern(17, "title_case_headings", _re(r"$^"), weight=0.0),  # placeholder
+    # 17 Title Case Headings: counted by a function, see HEURISTICS
     # 18 Emojis as bullets / decorations
     Pattern(18, "emojis", _re("[\U0001f300-\U0001faff☀-➿]"), weight=1.5),
     # 19 Curly quotes
@@ -218,7 +218,7 @@ PATTERNS: list[Pattern] = [
         "chatbot_artifacts",
         _re(
             r"\b(I hope this helps|let me know if|here is (a|an|the)|of course!|"
-            r"certainly!|you[''']re absolutely right|would you like (me to)?|happy to help)\b"
+            r"certainly!|you['‘’]re absolutely right|would you like (me to)?|happy to help)\b"
         ),
         weight=2.0,
     ),
@@ -238,7 +238,7 @@ PATTERNS: list[Pattern] = [
         22,
         "sycophantic",
         _re(
-            r"\b(great question!|excellent point|that[''']s a (great|fantastic|wonderful)|brilliant observation)\b"
+            r"\b(great question!|excellent point|that['‘’]s a (great|fantastic|wonderful)|brilliant observation)\b"
         ),
         weight=2.0,
     ),
@@ -257,10 +257,7 @@ PATTERNS: list[Pattern] = [
     Pattern(
         24,
         "excessive_hedging",
-        _re(
-            r"\b(could potentially possibly|might (potentially )?have some|"
-            r"may possibly|it could be argued that|one might suggest that)\b"
-        ),
+        _re(r"\b(could potentially possibly|might (potentially )?have some|may possibly)\b"),
         weight=1.5,
     ),
     # 25 Generic positive conclusions
@@ -299,15 +296,14 @@ PATTERNS: list[Pattern] = [
         28,
         "signposting",
         _re(
-            r"\b(let[''']s (dive in|explore|break this down|walk through|take a look)|"
-            r"here[''']s what you need to know|now let[''']s look at|"
+            r"\b(let['‘’]s (dive in|explore|break this down|take a look)|"
+            r"here['‘’]s what you need to know|now let['‘’]s look at|"
             r"without further ado|heads up|quick note|before I forget|"
             r"one thing that bit me)\b"
         ),
         weight=1.5,
     ),
-    # 29 Fragmented headers — heuristic, computed separately
-    Pattern(29, "fragmented_headers", _re(r"$^"), weight=0.0),  # placeholder
+    # 29 Fragmented headers: counted by a function, see HEURISTICS
     # ---- Patterns 30-35 (upstream) ----
     # 30 Previous-version writing (docs describing the old implementation, not current behavior)
     Pattern(
@@ -343,8 +339,8 @@ PATTERNS: list[Pattern] = [
         33,
         "fake_candid_openers",
         _re(
-            r"(?:^|[.!?]\s+|\n\s*)(Honestly\?|Look,|Here[''']s the thing|"
-            r"The thing is,|Let[''']s be honest|Real talk)"
+            r"(?:^|[.!?]\s+|\n\s*)(Honestly\?|Look,|Here['‘’]s the thing|"
+            r"The thing is,|Let['‘’]s be honest|Real talk)"
         ),
         weight=1.2,
     ),
@@ -353,8 +349,8 @@ PATTERNS: list[Pattern] = [
         34,
         "shadowboxing",
         _re(
-            r"\b(this isn[''']t (mainly|really) about|this is not (about|to say)|"
-            r"I[''']m not (saying|arguing)|don[''']t get me wrong|"
+            r"\b(this isn['‘’]t (mainly|really) about|this is not (about|to say)|"
+            r"I['‘’]m not (saying|arguing)|don['‘’]t get me wrong|"
             r"some might say[^.!?]{0,60}but)\b"
         ),
         weight=1.0,
@@ -377,7 +373,10 @@ PATTERNS: list[Pattern] = [
         "citation_laundering",
         _re(
             r"\b(studies (have )?(show|shows|shown|suggest|reported|indicate)|"
-            r"research (suggests|indicates|has shown)|the literature (reports|suggests))\b(?![^.]*\d{4})"
+            r"research (suggests|indicates|has shown)|the literature (reports|suggests))\b"
+            # Cited if a year or a numeric reference follows in the same sentence.
+            # "et al." is skipped over so its period does not end the sentence.
+            r"(?!(?:[^.!?]|\bet al\.)*(?:\d{4}|\[\d+))"
         ),
         weight=2.0,
         profile_carveouts={"academic": 2.5, "commit": 0.0},
@@ -387,8 +386,7 @@ PATTERNS: list[Pattern] = [
         37,
         "manuscript_boilerplate",
         _re(
-            r"\b(to the best of our knowledge|fills a critical gap|"
-            r"represents a significant advance|of paramount importance|"
+            r"\b(to the best of our knowledge|fills a critical gap|of paramount importance|"
             r"constitutes the first comprehensive|lays the foundation for)\b"
         ),
         weight=2.5,
@@ -399,8 +397,8 @@ PATTERNS: list[Pattern] = [
         38,
         "tutorial_scaffolding",
         _re(
-            r"\b(let[''']s walk through|let[''']s start with|here[''']s the high-level|"
-            r"after which we[''']ll|in this section[, ]+we will)\b"
+            r"\b(let['‘’]s walk through|let['‘’]s start with|here['‘’]s the high-level|"
+            r"after which we['‘’]ll|in this section[, ]+we will)\b"
         ),
         weight=1.2,
     ),
@@ -419,8 +417,7 @@ PATTERNS: list[Pattern] = [
         _re(r"\b(currently|at present|at the time of writing|as of (now|today))\b"),
         weight=0.6,
     ),
-    # 41 Polysyndetic tripleting — count "X, Y, and Z" patterns per paragraph
-    Pattern(41, "polysyndetic_tripleting", _re(r"$^"), weight=0.0),  # computed separately
+    # 41 Polysyndetic tripleting: counted by a function, see HEURISTICS
     # 42 AI-flavoured commit verbs
     Pattern(
         42,
@@ -634,12 +631,12 @@ def count_polysyndetic_tripleting(text: str) -> int:
     return count
 
 
-# Pattern ids whose counts come from a function rather than a regex, with weights.
+# Patterns whose counts come from a function rather than a regex: (id, name, count, weight).
 HEURISTICS = (
-    ("synonym_cycling", count_synonym_cycling, 1.0),
-    ("title_case_headings", count_title_case_headings, 0.7),
-    ("fragmented_headers", count_fragmented_headers, 1.0),
-    ("polysyndetic_tripleting", count_polysyndetic_tripleting, 1.5),
+    (11, "synonym_cycling", count_synonym_cycling, 1.0),
+    (17, "title_case_headings", count_title_case_headings, 0.7),
+    (29, "fragmented_headers", count_fragmented_headers, 1.0),
+    (41, "polysyndetic_tripleting", count_polysyndetic_tripleting, 1.5),
 )
 
 # Upper bound (exclusive) of each score band, lowest first.
@@ -649,14 +646,19 @@ VERDICT_BANDS = ((20, "clean"), (40, "minor_residue"), (60, "needs_editing"))
 # ---- Profile detection --------------------------------------------------------
 
 
+# A whole word in the filename, so "my_thesis.md" and "paper-draft.md" match but
+# "hypothesis.md", "wallpaper.md" and "paperwork.md" do not.
+_ACADEMIC_NAME_RE = re.compile(r"(?:^|[^a-z])(?:manuscript|thesis|paper)s?(?![a-z])")
+
+
 def detect_profile(path: Path) -> str:
     name = path.name.lower()
-    full = str(path).lower().replace("\\", "/")
+    dirs = {part.lower() for part in path.parts[:-1]}
     if name == "commit_editmsg" or name.endswith(".commit"):
         return "commit"
-    if any(x in name for x in ("manuscript", "thesis", "paper")) or name.endswith(".tex"):
+    if _ACADEMIC_NAME_RE.search(name) or name.endswith(".tex"):
         return "academic"
-    if name == "readme.md" or "/docs/" in full or "/stage3/" in full:
+    if name == "readme.md" or dirs & {"docs", "stage3"}:
         return "docs"
     return "blog"
 
@@ -671,14 +673,12 @@ def score_text(text: str, profile: str = "blog") -> dict:
     total_words = max(len(text.split()), 1)
 
     for p in PATTERNS:
-        if p.weight == 0:
-            continue
         hits = len(p.regex.findall(text))
         if hits:
             breakdown[p.name] = hits
             weighted[p.name] = hits * p.adjusted_weight(profile)
 
-    for name, count, weight in HEURISTICS:
+    for _pid, name, count, weight in HEURISTICS:
         hits = count(text)
         if hits:
             breakdown[name] = hits

@@ -15,7 +15,7 @@
 | 1 | Always-on rule file at `~/.claude/rules/10-anti-slop.md` | Loaded into every session |
 | 2 | `/humanize` slash command | Manual invocation |
 | 3 | PostToolUse hook on Write/Edit | Fires automatically when Claude writes prose |
-| 4 | `humanizer-reviewer` subagent | Called by `/ship`, `/review-paper`, on demand |
+| 4 | `humanizer-reviewer` subagent | On demand, or proactively after long drafts |
 | 5 | `humanize_score.py` CLI | Pattern scoring; exits non-zero above threshold |
 | 6 | `burstiness_check.py` CLI | Statistical signatures the pattern list cannot see |
 

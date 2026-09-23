@@ -13,6 +13,53 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Pattern #9 (negative parallelism) never matched real text.** Its regex required a
+  literal `X` where the first clause goes, so "not just fast, but cheap" scored 0.
+- **Curly apostrophes defeated every contraction pattern.** The class meant to accept
+  `'`, `‘` and `’` held three straight apostrophes, so "It’s not just about…" and
+  "You’re absolutely right" went uncounted in #9, #20, #22, #28, #33, #34 and #38.
+- **Cited claims were flagged as citation laundering (#36).** The period in "et al."
+  ended the look-ahead before it reached the year, and numeric citations (`[12]`)
+  were never recognised.
+- **Profile detection misread paths.** A relative `docs/guide.md` scored as `blog`
+  because only `/docs/` with a leading slash counted, and substring matching sent
+  `wallpaper.md` and `hypothesis.md` to `academic`. Directories now match as whole
+  path parts and `manuscript`/`thesis`/`paper` as words in the filename.
+
+### Changed
+
+- **A phrase is counted by one pattern, not two.** Eleven phrases sat in two regex
+  lists, so "serves as a testament to the evolving landscape" scored #1, #7 and #8
+  together. Each now belongs to one pattern: "serves as", "stands as" and "represents
+  a" to #8 (copula avoidance); "testament", "pivotal", "landscape" and "fostering" to
+  #7; "underscoring" to #3; "it could be argued that" and "one might suggest that" to
+  #44; "let's walk through" to #38. **Scores drop** for text that used these phrases,
+  since each hit now carries one weight instead of two or three.
+
+### Removed
+
+- **`burstiness-check --threshold`.** It was deprecated in 2.0.0 and kept for one
+  minor version; passing it is now an argparse error (exit 2). Use `--fail-on`.
+- **Fallbacks for the pre-1.1.1 `scripts/` layout** in the hook and the reviewer
+  agent's scorer lookup.
+- **Placeholder patterns.** #11, #17, #29 and #41 no longer sit in `PATTERNS` as
+  weight-0 regexes that never match; their ids live in `HEURISTICS` with the
+  functions that count them. Scores are unchanged.
+- **References to `/ship`, `/review-paper` and `/compile-paper`,** slash commands this
+  repository has never shipped, from `README.md`, `SKILL.md` and the reviewer agent.
+
+### Changed — housekeeping
+
+- **The always-on rule is a file,** `rules/10-anti-slop.md`, instead of a heredoc
+  inside `install.sh`, so it can be reviewed and diffed like the rest of the prose.
+- **The hook's last-resort scorer path honours `CLAUDE_HOME`,** as `install.sh`
+  does, so a custom `CLAUDE_HOME` install no longer leaves a hook that finds nothing.
+- **`SKILL.md`'s report template no longer asks for `paragraph_cv >= 0.40`,** a
+  threshold that was retired in 2.0.0.
+- **`CLAUDE.md` describes this project** instead of being an unfilled template.
+
 ## [2.1.0] — 2026-09-16
 
 ### Changed

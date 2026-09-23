@@ -37,6 +37,7 @@ SOURCES = [
     "humanize_anti_slop/burstiness_check.py",
     "agents/humanizer-reviewer.md",
     "hooks/humanize-post-write.sh",
+    "rules/10-anti-slop.md",
 ]
 
 
