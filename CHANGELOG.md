@@ -13,6 +13,8 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [3.0.0] - 2026-09-22
+
 ### Fixed
 
 - **Pattern #9 (negative parallelism) never matched real text.** Its regex required a
@@ -22,11 +24,15 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   "You’re absolutely right" went uncounted in #9, #20, #22, #28, #33, #34 and #38.
 - **Cited claims were flagged as citation laundering (#36).** The period in "et al."
   ended the look-ahead before it reached the year, and numeric citations (`[12]`)
-  were never recognised.
+  were never recognised. The look-ahead also stops at `!` and `?` now, so a year in
+  the following sentence no longer passes for a citation.
 - **Profile detection misread paths.** A relative `docs/guide.md` scored as `blog`
   because only `/docs/` with a leading slash counted, and substring matching sent
   `wallpaper.md` and `hypothesis.md` to `academic`. Directories now match as whole
-  path parts and `manuscript`/`thesis`/`paper` as words in the filename.
+  path parts and `manuscript`/`thesis`/`paper` as whole words in the filename, so
+  `paperwork.md` stays `blog`.
+- **Superficial -ing phrases (#3) split by a line break went uncounted.** The regex
+  wanted a literal space after the verb, so hard-wrapped Markdown slipped past.
 
 ### Changed
 
@@ -43,10 +49,11 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **Python 3.14 or newer is required.** `requires-python`, ruff's target and CI all
   move to 3.14, the current release; 3.9 reached end of life in October 2025. The
   hook runs the first `python3` on `PATH`, so a machine whose default is older
-  (macOS ships 3.9) needs a newer Python installed or the hook stays silent.
+  (macOS ships 3.9) needs a newer Python installed or the hook stays silent. The
+  `dev` extra now needs Ruff 0.11.8 or newer, the first release that accepts the
+  `py314` target.
 
 ### Removed
-
 
 - **`burstiness-check --threshold`.** It was deprecated in 2.0.0 and kept for one
   minor version; passing it is now an argparse error (exit 2). Use `--fail-on`.
@@ -64,6 +71,8 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   inside `install.sh`, so it can be reviewed and diffed like the rest of the prose.
 - **The hook's last-resort scorer path honours `CLAUDE_HOME`,** as `install.sh`
   does, so a custom `CLAUDE_HOME` install no longer leaves a hook that finds nothing.
+  The always-on rule and the reviewer agent now point at the skill under the Claude
+  home they were installed into, with `~/.claude` as the default.
 - **`SKILL.md`'s report template no longer asks for `paragraph_cv >= 0.40`,** a
   threshold that was retired in 2.0.0.
 - **`CLAUDE.md` describes this project** instead of being an unfilled template.
@@ -399,7 +408,8 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `humanizer-reviewer` subagent, the PostToolUse hook, and `install.sh`.
 - `DETECTION_ROBUSTNESS.md`, recording what the score does and does not promise.
 
-[Unreleased]: https://github.com/rlorenzo/humanize/compare/v2.1.0...HEAD
+[Unreleased]: https://github.com/rlorenzo/humanize/compare/v3.0.0...HEAD
+[3.0.0]: https://github.com/rlorenzo/humanize/compare/v2.1.0...v3.0.0
 [2.1.0]: https://github.com/rlorenzo/humanize/compare/v2.0.1...v2.1.0
 [2.0.1]: https://github.com/rlorenzo/humanize/compare/v2.0.0...v2.0.1
 [2.0.0]: https://github.com/rlorenzo/humanize/compare/v1.2.0...v2.0.0
