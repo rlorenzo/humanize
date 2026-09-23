@@ -9,7 +9,7 @@ rule, and two zero-dependency Python CLIs (`humanize-score`, `burstiness-check`)
 Distributed through the plugin marketplace in `.claude-plugin/`, or by `install.sh`.
 
 ## Stack
-- Language / runtime: Python 3.9+, stdlib only (no runtime dependencies); bash for the hook and installer
+- Language / runtime: Python 3.14+, stdlib only (no runtime dependencies); bash for the hook and installer
 - Packaging: hatchling, installed with pip
 - Tooling: pytest + pytest-cov, ruff (lint + format), vulture, pylint (duplicate-code only), shellcheck
 

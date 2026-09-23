@@ -30,8 +30,6 @@ domains phase 1 needs, since HC3 could not test paragraph_cv at all. Anyone
 taking the documented route gets a domain-biased sample and no warning.
 """
 
-from __future__ import annotations
-
 import csv
 import io
 import re
@@ -128,7 +126,7 @@ def parse(raw: str) -> list[dict[str, str]]:
     if not match:
         return []
     rows = [r for r in csv.reader(io.StringIO(raw[match.start() :])) if len(r) == len(COLUMNS)]
-    return [dict(zip(COLUMNS, r)) for r in rows[:-1]]
+    return [dict(zip(COLUMNS, r, strict=True)) for r in rows[:-1]]
 
 
 def _probe(loc: str, offset: int, *columns: str) -> tuple[str, ...] | None:

@@ -16,7 +16,7 @@ perplexity and burstiness sit near 0.24%. Clearing this catalogue does not move 
 number, and a score of 0 guarantees nothing except that these 44 patterns are
 absent. See DETECTION_ROBUSTNESS.md.
 
-Pure Python, zero dependencies. Compatible with Python 3.9+.
+Pure Python, zero dependencies. Requires Python 3.14+.
 
 Usage:
    python humanize_score.py FILE.md
@@ -30,8 +30,6 @@ Profile detection (auto unless --profile= is given):
    .git/COMMIT_EDITMSG, *.commit          -> commit
    else                                   -> blog
 """
-
-from __future__ import annotations
 
 import argparse
 import json

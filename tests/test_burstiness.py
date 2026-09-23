@@ -1,7 +1,5 @@
 """Tests for burstiness_check.py: metrics, threshold checks, analysis, and CLI."""
 
-from __future__ import annotations
-
 import importlib.util
 import json
 import subprocess

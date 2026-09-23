@@ -191,7 +191,10 @@ humanize-score --profile=academic MANUSCRIPT.md
 burstiness-check MANUSCRIPT.md
 ```
 
-Both scorers are pure Python with **zero dependencies** and run on 3.9+.
+Both scorers are pure Python with **zero dependencies** and need Python 3.14+. The
+hook runs whichever `python3` is first on `PATH`; on macOS that is often the system
+3.9, so install a current Python (for example `brew install python`) or the hook
+stays silent. `HUMANIZE_DEBUG=1` shows the error.
 
 ### Hooked into commit time
 

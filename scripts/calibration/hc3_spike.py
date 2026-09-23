@@ -15,8 +15,6 @@ scripts/calibration/data/, which is gitignored -- see the fixtures README for wh
 does get checked in.
 """
 
-from __future__ import annotations
-
 import argparse
 import json
 from pathlib import Path
@@ -261,7 +259,7 @@ def draw(human: list[Doc], ai: list[Doc]) -> None:
     import matplotlib.pyplot as plt
 
     fig, axes = plt.subplots(1, len(METRICS), figsize=(4 * len(METRICS), 3.2))
-    for ax, metric in zip(axes, METRICS):
+    for ax, metric in zip(axes, METRICS, strict=True):
         hv = [d.metrics[metric] for d in human]
         av = [d.metrics[metric] for d in ai]
         lo, hi = min(min(hv), min(av)), max(max(hv), max(av))

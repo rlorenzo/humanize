@@ -5,8 +5,6 @@ plugin manifest, the marketplace listing, and the skill frontmatter. Nothing but
 this test stops them from drifting apart.
 """
 
-from __future__ import annotations
-
 import json
 import re
 from pathlib import Path

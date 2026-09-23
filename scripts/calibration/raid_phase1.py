@@ -13,8 +13,6 @@ Run raid_build_cache.py first. Usage:
     uv run scripts/calibration/raid_phase1.py [--plot]
 """
 
-from __future__ import annotations
-
 import argparse
 import json
 from collections import Counter, defaultdict

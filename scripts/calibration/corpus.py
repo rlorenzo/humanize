@@ -11,8 +11,6 @@ already outside it. Pure stdlib for the same reason the shipped package is:
 matplotlib is imported lazily and only to draw the overlap plot.
 """
 
-from __future__ import annotations
-
 import random
 import statistics
 import sys
@@ -270,7 +268,7 @@ def holdout_split(
     for human, ai in cells.values():
         n = min(len(human), len(ai))
         leftover += len(human) - n + len(ai) - n
-        pairs = list(zip(human[:n], ai[:n]))
+        pairs = list(zip(human[:n], ai[:n], strict=True))
         rng.shuffle(pairs)
         cut = round(len(pairs) * fraction)
         for pair in pairs[:cut]:
@@ -365,7 +363,7 @@ def spearman(a: list[float], b: list[float]) -> float:
     if sa == 0 or sb == 0:
         return 0.0
     ma, mb = statistics.mean(ra), statistics.mean(rb)
-    cov = sum((x - ma) * (y - mb) for x, y in zip(ra, rb)) / len(ra)
+    cov = sum((x - ma) * (y - mb) for x, y in zip(ra, rb, strict=True)) / len(ra)
     return cov / (sa * sb)
 
 
