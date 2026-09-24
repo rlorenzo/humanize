@@ -11,7 +11,7 @@ description: |
 license: MIT
 compatibility: Works with Claude Code and OpenCode. Scorer requires Python 3.14+.
 metadata:
-  version: "3.0.0"
+  version: "3.1.0"
   extends: https://github.com/blader/humanizer (MIT, synced at v3.0.0)
 allowed-tools:
   - Read
