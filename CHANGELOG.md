@@ -13,6 +13,8 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [3.1.0] - 2026-09-24
+
 ### Changed
 
 - **Re-synced with blader/humanizer v3.0.0; the catalogue is now 34 patterns.**
@@ -35,7 +37,7 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   false-positive list with upstream's "When not to act". `patterns/core.md` is the
   v3.0.0 text.
 - **Watch lists extended to match upstream:** split-sentence and "it's not X, it's Y"
-  contrasts, "let that sink in", en dashes and ` -- ` used as dashes, more AI words
+  contrasts, "let that sink in", "that is the real win", en dashes and ` -- ` used as dashes, more AI words
   (additionally, bolstered, showcase, meticulously, valuable), more sales, notability
   and disclaimer phrases, and "want me to" / "should I continue" as chatbot residue.
 - **Not X but Y (#1) catches the split form generally:** a negated sentence answered by
@@ -45,7 +47,8 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **Vague connection (#14) ignores hyperlinks:** "headline linked to your page" no
   longer counts.
 - **Hyphenated pairs (#10) are flagged only after the noun.** "A high-quality report"
-  is correct; "the report is high-quality." is the tell.
+  and "a high-quality, data-driven report" are correct; "the report is high-quality."
+  is the tell.
 
 ### Added
 
@@ -459,7 +462,8 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `humanizer-reviewer` subagent, the PostToolUse hook, and `install.sh`.
 - `DETECTION_ROBUSTNESS.md`, recording what the score does and does not promise.
 
-[Unreleased]: https://github.com/rlorenzo/humanize/compare/v3.0.0...HEAD
+[Unreleased]: https://github.com/rlorenzo/humanize/compare/v3.1.0...HEAD
+[3.1.0]: https://github.com/rlorenzo/humanize/compare/v3.0.0...v3.1.0
 [3.0.0]: https://github.com/rlorenzo/humanize/compare/v2.1.0...v3.0.0
 [2.1.0]: https://github.com/rlorenzo/humanize/compare/v2.0.1...v2.1.0
 [2.0.1]: https://github.com/rlorenzo/humanize/compare/v2.0.0...v2.0.1
