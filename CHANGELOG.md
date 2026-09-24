@@ -13,6 +13,57 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- **Re-synced with blader/humanizer v3.0.0; the catalogue is now 34 patterns.**
+  Upstream rebuilt its 35 patterns into 25, grouped in five sections and numbered
+  strongest first; the fork's nine extensions move from 36-44 to 26-34. Scorer ids and
+  most `breakdown` names change with them, so anything keyed on the old names needs
+  updating (released as a 3.x minor by choice, not a major). Merged patterns now share
+  one name: `not_x_but_y` (was `negative_parallelism`), `one_line_closers` (`forced_punchlines`),
+  `deep_sayings` (`persuasive_authority` + `formulaic_sayings`), `staged_runup`
+  (`signposting` + `fake_candid_openers`), `arguing_with_no_one` (`shadowboxing` +
+  `fake_alternatives`), `inflated_significance` (`significance_inflation` +
+  `formulaic_challenges` + `generic_conclusion`), `borrowed_authority`
+  (`notability_name_dropping` + `vague_attribution`), and `chatbot_residue`
+  (`chatbot_artifacts` + `sycophantic`). Also renamed: `forced_triads`, `dashes`,
+  `stacked_qualifiers`, `shallow_ing`, `sales_language`, `bold_decoration`,
+  `restated_bold_labels`, `decorative_emojis` and `repeated_heading`.
+- **SKILL.md follows upstream's structure.** It opens with upstream's account of why AI
+  text sounds the way it does, merges the workflow into one process (mark the tells,
+  draft, check, final), adds the file and embedded return modes, and replaces the
+  false-positive list with upstream's "When not to act". `patterns/core.md` is the
+  v3.0.0 text.
+- **Watch lists extended to match upstream:** split-sentence and "it's not X, it's Y"
+  contrasts, "let that sink in", en dashes and ` -- ` used as dashes, more AI words
+  (additionally, bolstered, showcase, meticulously, valuable), more sales, notability
+  and disclaimer phrases, and "want me to" / "should I continue" as chatbot residue.
+- **Not X but Y (#1) catches the split form generally:** a negated sentence answered by
+  one opening with a pronoun ("isn't a plan. It's more noise.", "They're not X.
+  They're Y."), not only "does not mean X. It means Y." Found by testing on a real
+  speech draft, where the scorer missed all six contrasts.
+- **Vague connection (#14) ignores hyperlinks:** "headline linked to your page" no
+  longer counts.
+- **Hyphenated pairs (#10) are flagged only after the noun.** "A high-quality report"
+  is correct; "the report is high-quality." is the tell.
+
+### Added
+
+- **#14 Vague connection or association** ("associated with", "in connection with"),
+  new upstream. Low weight, lower still in `academic`, off in `commit`.
+- **#7 Repeated sentence openings** is now counted: three or more consecutive sentences
+  in a paragraph opening with the same word (articles and list items exempt).
+
+### Removed
+
+- **Synonym cycling, false ranges and filler phrases**, which upstream dropped. Wikipedia
+  now lists false ranges as a human habit and synonym cycling as a historical indicator.
+
+### Fixed
+
+- **"Great question!", "Of course!" and "Certainly!" never matched.** The closing `\b`
+  cannot match after `!` followed by a space.
+
 ## [3.0.0] - 2026-09-22
 
 ### Fixed

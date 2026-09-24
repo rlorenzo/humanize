@@ -25,37 +25,82 @@ SLOP = (
     "innovation, inspiration, and industry insights. The future looks bright."
 )
 
-# Exemplar sentences that must trigger each regex-based pattern added or
-# renumbered in the v2.11.2 re-sync (pattern id -> (name, text)).
+# Exemplar sentences that must trigger each regex-based pattern
+# (pattern name -> (id, text)), numbered as in the v3.0.0 re-sync.
 EXEMPLARS = {
-    30: ("previous_version_writing", "This replaces the previous approach of iterating."),
-    31: ("forced_punchlines", "Then it arrived. No aesthetic prior. No nostalgia at all."),
-    32: ("formulaic_sayings", "Symmetry is the language of trust."),
-    33: ("fake_candid_openers", "Honestly? It depends on usage."),
-    34: ("shadowboxing", "I'm not saying documentation is useless."),
-    35: ("fake_alternatives", "A tempting approach would be to restart the service."),
-    36: ("citation_laundering", "Studies show that results improved."),
-    37: ("manuscript_boilerplate", "To the best of our knowledge, nothing exists."),
-    38: ("tutorial_scaffolding", "Let's walk through how the pipeline works."),
-    39: ("stat_parade", "The difference was significant (p < 0.001)."),
-    40: ("temporal_hedges", "Currently, the field is evolving."),
-    42: ("ai_commit_verbs", "feat: improves robustness and enhances functionality"),
-    43: ("methodology_pseudo", "A careful evaluation was performed."),
-    44: ("dissertation_hedging", "It can be argued that this has advantages."),
+    "not_x_but_y": (1, "This does not mean every choice is equal. It means none is checked."),
+    "one_line_closers": (2, "Then it arrived. No aesthetic prior. No nostalgia at all."),
+    "deep_sayings": (3, "Symmetry is the language of trust."),
+    "staged_runup": (4, "Honestly? It depends on usage."),
+    "arguing_with_no_one": (5, "A tempting approach would be to restart the service."),
+    "forced_triads": (6, "It covers innovation, inspiration, and insights."),
+    "dashes": (8, "The policy -- announced without warning -- applies now."),
+    "stacked_qualifiers": (9, "It could potentially affect outcomes."),
+    "hyphenated_pairs": (10, "The report is high-quality."),
+    "passive_voice": (11, "The results were preserved automatically."),
+    "ai_vocabulary": (12, "We delve into the details."),
+    "inflated_significance": (13, "Despite these challenges, the town continues to thrive."),
+    "vague_connection": (14, "He is associated with the Rajhans Orchestra."),
+    "shallow_ing": (15, "The colors are blue and gold, symbolizing the bluebonnets."),
+    "sales_language": (16, "The town is nestled in the hills."),
+    "borrowed_authority": (17, "Her views have been cited in The Hindu."),
+    "copula_avoidance": (18, "Gallery 825 serves as the exhibition space."),
+    "bold_decoration": (19, "It blends **OKRs** and **KPIs**."),
+    "restated_bold_labels": (19, "- **Performance:** Performance has improved."),
+    "decorative_emojis": (20, "\U0001f680 Launch phase starts in Q3."),
+    "curly_quotes": (21, "He said \u201cthe project is on track\u201d yesterday."),
+    "chatbot_residue": (22, "Great question! The answer is four."),
+    "cutoff_disclaimer": (23, "Her early life is not publicly available."),
+    "previous_version_writing": (25, "This replaces the previous approach of iterating."),
+    "citation_laundering": (26, "Studies show that results improved."),
+    "manuscript_boilerplate": (27, "To the best of our knowledge, nothing exists."),
+    "tutorial_scaffolding": (28, "Let's walk through how the pipeline works."),
+    "stat_parade": (29, "The difference was significant (p < 0.001)."),
+    "temporal_hedges": (30, "Currently, the field is evolving."),
+    "ai_commit_verbs": (32, "feat: improves robustness and enhances functionality"),
+    "methodology_pseudo": (33, "A careful evaluation was performed."),
+    "dissertation_hedging": (34, "It can be argued that this has advantages."),
 }
 
 
-def test_pattern_ids_are_1_to_44_with_unique_names():
+def test_pattern_ids_are_1_to_34_with_unique_names():
     catalogue = [(p.pid, p.name) for p in hs.PATTERNS] + [h[:2] for h in hs.HEURISTICS]
-    assert sorted(pid for pid, _ in catalogue) == list(range(1, 45))
-    assert len({name for _, name in catalogue}) == 44
+    assert {pid for pid, _ in catalogue} == set(range(1, 35))
+    # #19 and #20 each have two parts; every other id has one.
+    assert len(catalogue) == 36
+    assert len({name for _, name in catalogue}) == 36
 
 
-@pytest.mark.parametrize("pid", sorted(EXEMPLARS))
-def test_pattern_fires_on_exemplar(pid):
-    name, text = EXEMPLARS[pid]
-    pattern = next(p for p in hs.PATTERNS if p.pid == pid)
-    assert pattern.name == name
+@pytest.mark.parametrize(
+    "text", ["It is a high-quality report.", "It is a high-quality, data-driven report."]
+)
+def test_hyphenated_pair_before_a_noun_is_not_flagged(text):
+    assert "hyphenated_pairs" not in hs.score_text(text)["breakdown"]
+
+
+def test_hyphenated_pair_before_a_comma_in_predicate_is_flagged():
+    text = "The team is cross-functional, and the report is late."
+    assert hs.score_text(text)["breakdown"].get("hyphenated_pairs") == 1
+
+
+@pytest.mark.parametrize("text", ["That is the real win.", "That\u2019s the real win."])
+def test_one_line_closer_watch_phrase(text):
+    assert hs.score_text(text)["breakdown"].get("one_line_closers") == 1
+
+
+def test_en_dash_in_a_number_range_is_not_flagged():
+    assert "dashes" not in hs.score_text("The survey ran 1990–2000.")["breakdown"]
+
+
+def test_every_regex_pattern_has_an_exemplar():
+    assert {p.name for p in hs.PATTERNS} == set(EXEMPLARS)
+
+
+@pytest.mark.parametrize("name", sorted(EXEMPLARS))
+def test_pattern_fires_on_exemplar(name):
+    pid, text = EXEMPLARS[name]
+    pattern = next(p for p in hs.PATTERNS if p.name == name)
+    assert pattern.pid == pid
     assert hs.score_text(text)["breakdown"].get(name, 0) >= 1
 
 
@@ -74,17 +119,17 @@ def test_polysyndetic_tripleting_needs_three_triplets_in_one_paragraph():
     "text",
     ["It is not just fast, but cheap.", "This is not only a parser but a linter."],
 )
-def test_negative_parallelism_matches_real_sentences(text):
+def test_not_x_but_y_matches_real_sentences(text):
     # The regex once required a literal "X" where the first clause goes.
-    assert hs.score_text(text)["breakdown"].get("negative_parallelism", 0) >= 1
+    assert hs.score_text(text)["breakdown"].get("not_x_but_y", 0) >= 1
 
 
 @pytest.mark.parametrize(
     "name,text",
     [
-        ("negative_parallelism", "It\u2019s not just about speed."),
-        ("chatbot_artifacts", "You\u2019re absolutely right."),
-        ("sycophantic", "That\u2019s a great idea."),
+        ("not_x_but_y", "It\u2019s not just about speed."),
+        ("chatbot_residue", "You\u2019re absolutely right."),
+        ("chatbot_residue", "That\u2019s a great idea."),
         ("tutorial_scaffolding", "Let\u2019s walk through the setup."),
     ],
 )
@@ -120,8 +165,8 @@ def test_citation_in_a_later_sentence_does_not_count(end):
         ("It is a testament to them.", "ai_vocabulary"),
         ("The evolving landscape changed.", "ai_vocabulary"),
         ("Marking a pivotal moment for us.", "ai_vocabulary"),
-        ("Underscoring its importance here.", "superficial_ing"),
-        ("Underscoring\nits importance here.", "superficial_ing"),
+        ("Underscoring its importance here.", "shallow_ing"),
+        ("Underscoring\nits importance here.", "shallow_ing"),
         ("Fostering growth matters.", "ai_vocabulary"),
         ("It could be argued that it works.", "dissertation_hedging"),
         ("One might suggest that it works.", "dissertation_hedging"),
@@ -134,9 +179,34 @@ def test_a_phrase_is_counted_by_one_pattern_only(phrase, name):
     assert regex_hits == [name]
 
 
-def test_formulaic_sayings_requires_copula():
+@pytest.mark.parametrize(
+    "text",
+    [
+        "But posting more isn't a plan. It's more noise.",
+        "They're not scrolling Facebook. They're typing into Google.",
+        "You're not behind. You're early.",
+        "That doesn't look like an ad. It looks like pride.",
+        "This does not mean every choice is equal. It means none is checked.",
+    ],
+)
+def test_not_x_but_y_split_across_sentences(text):
+    assert hs.score_text(text)["breakdown"].get("not_x_but_y", 0) >= 1
+
+
+def test_negation_followed_by_an_unrelated_sentence_is_not_flagged():
+    text = "The file is not cached. The next call fetches it."
+    assert "not_x_but_y" not in hs.score_text(text)["breakdown"]
+
+
+def test_hyperlink_is_not_a_vague_connection():
+    text = "A reader sees your headline linked to your page."
+    assert "vague_connection" not in hs.score_text(text)["breakdown"]
+    assert hs.score_text("The rise is linked to rates.")["breakdown"].get("vague_connection") == 1
+
+
+def test_deep_sayings_requires_copula():
     text = "The architecture of the plugin is described in three files."
-    assert "formulaic_sayings" not in hs.score_text(text)["breakdown"]
+    assert "deep_sayings" not in hs.score_text(text)["breakdown"]
 
 
 def test_clean_prose_scores_clean():
