@@ -38,6 +38,12 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   contrasts, "let that sink in", en dashes and ` -- ` used as dashes, more AI words
   (additionally, bolstered, showcase, meticulously, valuable), more sales, notability
   and disclaimer phrases, and "want me to" / "should I continue" as chatbot residue.
+- **Not X but Y (#1) catches the split form generally:** a negated sentence answered by
+  one opening with a pronoun ("isn't a plan. It's more noise.", "They're not X.
+  They're Y."), not only "does not mean X. It means Y." Found by testing on a real
+  speech draft, where the scorer missed all six contrasts.
+- **Vague connection (#14) ignores hyperlinks:** "headline linked to your page" no
+  longer counts.
 - **Hyphenated pairs (#10) are flagged only after the noun.** "A high-quality report"
   is correct; "the report is high-quality." is the tell.
 

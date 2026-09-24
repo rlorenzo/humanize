@@ -179,6 +179,31 @@ def test_a_phrase_is_counted_by_one_pattern_only(phrase, name):
     assert regex_hits == [name]
 
 
+@pytest.mark.parametrize(
+    "text",
+    [
+        "But posting more isn't a plan. It's more noise.",
+        "They're not scrolling Facebook. They're typing into Google.",
+        "You're not behind. You're early.",
+        "That doesn't look like an ad. It looks like pride.",
+        "This does not mean every choice is equal. It means none is checked.",
+    ],
+)
+def test_not_x_but_y_split_across_sentences(text):
+    assert hs.score_text(text)["breakdown"].get("not_x_but_y", 0) >= 1
+
+
+def test_negation_followed_by_an_unrelated_sentence_is_not_flagged():
+    text = "The file is not cached. The next call fetches it."
+    assert "not_x_but_y" not in hs.score_text(text)["breakdown"]
+
+
+def test_hyperlink_is_not_a_vague_connection():
+    text = "A reader sees your headline linked to your page."
+    assert "vague_connection" not in hs.score_text(text)["breakdown"]
+    assert hs.score_text("The rise is linked to rates.")["breakdown"].get("vague_connection") == 1
+
+
 def test_deep_sayings_requires_copula():
     text = "The architecture of the plugin is described in three files."
     assert "deep_sayings" not in hs.score_text(text)["breakdown"]

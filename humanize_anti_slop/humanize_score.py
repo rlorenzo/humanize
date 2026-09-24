@@ -74,7 +74,12 @@ PATTERNS: list[Pattern] = [
         _re(
             r"\b(it['‘’]s not (just|only|merely) about|not (just|only|merely) [^.,;!?\n]{1,40},?\s+but\b|"
             r"it['‘’]s not [^.,;!?\n]{1,40}[,;]\s*it['‘’]s\b|"
-            r"does(n['‘’]t| not) mean\b[^.!?\n]{0,80}[.!?]\s+It means\b|, no \w+\.)"
+            # Split form: a negated sentence answered by one that opens with a
+            # pronoun ("isn't a plan. It's noise." / "They're not X. They're Y.").
+            r"(?:(?:is|are|was|were|does|do|did)(?:n['‘’]t| not)|"
+            r"(?:it|they|that|this|we|you)['‘’](?:s|re) not)\b[^.!?\n]{1,80}[.!?]\s+"
+            r"(?:It|They|That|This|He|She|We|You)(?:['‘’](?:s|re)\b|\s+(?:is|are|was|were|means|looks)\b)|"
+            r", no \w+\.)"
         ),
         weight=1.2,
     ),
@@ -213,7 +218,9 @@ PATTERNS: list[Pattern] = [
         "vague_connection",
         _re(
             r"\b(in association with|associated with|in connection with|"
-            r"connected to|linked to|tied to)\b"
+            r"connected to|tied to|"
+            # A literal hyperlink ("headline linked to your page") names the relationship.
+            r"linked to(?!\s+(?:\w+\s+){0,2}(?:page|article|site|url|post|story|document)s?\b))\b"
         ),
         weight=0.5,
         profile_carveouts={"academic": 0.6, "commit": 0.0},
