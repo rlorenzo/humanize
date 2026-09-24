@@ -23,52 +23,40 @@ sys.modules["humanize_score_counters"] = hs
 spec.loader.exec_module(hs)
 
 
-# ---- #11 synonym cycling ------------------------------------------------------
+# ---- #7 repeated sentence openings -------------------------------------------
 
 
-def test_synonym_cycling_fires_on_three_variants_in_one_paragraph():
-    assert (
-        hs.count_synonym_cycling(
-            "The problem was real. The issue persisted. The challenge remained."
-        )
-        == 1
-    )
+def test_repeated_openings_fires_on_three_in_a_row():
+    text = "She noted the door. She noted the lock on it. She filed both away."
+    assert hs.count_repeated_openings(text) == 1
 
 
-def test_synonym_cycling_ignores_two_variants():
-    """Two synonyms is ordinary writing; the pattern is cycling, not repetition."""
-    assert hs.count_synonym_cycling("The problem was real. The issue persisted.") == 0
+def test_repeated_openings_ignores_two_in_a_row():
+    assert hs.count_repeated_openings("She noted the door. She left. Rain fell.") == 0
 
 
-def test_synonym_cycling_is_per_paragraph_not_per_document():
-    spread = "The problem was real.\n\nThe issue persisted.\n\nThe challenge remained."
-    assert hs.count_synonym_cycling(spread) == 0
+def test_repeated_openings_counts_a_long_run_once():
+    text = "He ran. He hid. He waited. He slept."
+    assert hs.count_repeated_openings(text) == 1
 
 
-def test_synonym_cycling_counts_each_group_separately():
-    """A paragraph cycling two different noun groups counts twice, not once.
-
-    Pinning this because the docstring says it "reports paragraphs that match",
-    which reads as one-per-paragraph. The count is per (paragraph, group) pair.
-    """
-    para = (
-        "The company faced a problem. The organization saw the issue. The firm named the challenge."
-    )
-    assert hs.count_synonym_cycling(para) == 2
+def test_repeated_openings_is_per_paragraph():
+    assert hs.count_repeated_openings("She ran.\n\nShe hid.\n\nShe waited.") == 0
 
 
-def test_synonym_cycling_matches_multi_word_terms():
-    para = "The hero acted. The protagonist paused. The main character returned."
-    assert hs.count_synonym_cycling(para) == 1
+def test_repeated_openings_exempts_articles():
+    """Three sentences opening with "The" is grammar, not habit."""
+    assert hs.count_repeated_openings("The parser runs. The lexer runs. The output prints.") == 0
 
 
-def test_synonym_cycling_requires_word_boundaries():
-    """ "issued" must not count as "issue"."""
-    para = "The problem was real. The permit was issued. A challenger appeared."
-    assert hs.count_synonym_cycling(para) == 0
+def test_repeated_openings_skips_list_items():
+    """A bulleted changelog of "Add ..." items is a format."""
+    assert hs.count_repeated_openings("- Add X.\n- Add Y.\n- Add Z.") == 0
+    assert hs.count_repeated_openings("1. Add X.\n2. Add Y.\n3. Add Z.") == 0
+    assert hs.count_repeated_openings("- Add X. Add Y. Add Z.") == 0
 
 
-# ---- #17 title-case headings --------------------------------------------------
+# ---- #20 title-case headings --------------------------------------------------
 
 
 def test_title_case_heading_fires():
@@ -109,7 +97,7 @@ def test_title_case_false_positives_on_proper_nouns():
     assert hs.count_title_case_headings("## Notes on CI and Ruff") == 1
 
 
-# ---- #29 fragmented headers ---------------------------------------------------
+# ---- #24 repeated heading -----------------------------------------------------
 
 
 def test_fragmented_header_fires_on_a_restating_stub():
@@ -165,7 +153,7 @@ def test_fragmented_header_fires_at_end_of_file():
     assert hs.count_fragmented_headers("## Overview\n\nOverview of the system.\n") == 1
 
 
-# ---- #41 polysyndetic tripleting ----------------------------------------------
+# ---- #31 polysyndetic tripleting ----------------------------------------------
 
 
 def test_tripleting_fires_on_three_triplets():
@@ -245,7 +233,7 @@ def test_fragmented_header_residual_false_positives():
     behaviour -- which fired on every hard-wrapped paragraph in the repository,
     11 times in README.md alone -- but they are not clean. Tightening further
     means guessing at more markdown heuristics without a corpus to check
-    against, which is the pseudo-precision this project flags as pattern #43.
+    against, which is the pseudo-precision this project flags as pattern #33.
     """
     assert hs.count_fragmented_headers("## License\n\nMIT — see [LICENSE](LICENSE).\n") == 1
     assert hs.count_fragmented_headers("## Commit verbs\n\n**Problem:** Vague commit verbs.\n") == 1

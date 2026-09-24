@@ -1,19 +1,19 @@
 #!/usr/bin/env python3
 """humanize_score — quantify AI-writing patterns in a text file.
 
-Returns JSON: {"score": 0-100, "breakdown": {pattern_id: count}, "top_offenders": [...], "profile": "..."}.
+Returns JSON: {"score": 0-100, "breakdown": {pattern_name: count}, "top_offenders": [...], "profile": "..."}.
 Lower score = more human. Threshold convention:
    0-20   clean / human
    20-40  some AI residue, acceptable
    40-60  obvious patterns, needs editing
    60-100 heavy slop, rewrite
 
-WHAT THE SCORE DOES NOT MEAN: it is a weighted rate of the 44 patterns in this
+WHAT THE SCORE DOES NOT MEAN: it is a weighted rate of the 34 patterns in this
 catalogue, per 100 words, not a raw count of hits. That is a claim about writing
 quality, not a prediction about any AI detector. Pangram, which trains on Claude's
 actual phrase distributions, detects at roughly 18% where detectors built on
 perplexity and burstiness sit near 0.24%. Clearing this catalogue does not move that
-number, and a score of 0 guarantees nothing except that these 44 patterns are
+number, and a score of 0 guarantees nothing except that these 34 patterns are
 absent. See DETECTION_ROBUSTNESS.md.
 
 Pure Python, zero dependencies. Requires Python 3.14+.
@@ -39,10 +39,12 @@ import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
-# ---- Pattern definitions (44 patterns) ----------------------------------------
+# ---- Pattern definitions (34 patterns) ----------------------------------------
 
-# 40 patterns are regexes, listed here; the other four (#11, #17, #29, #41) are
-# counted by functions, listed in HEURISTICS.
+# Numbered as in blader/humanizer v3.0.0 (1-25, strongest first) plus this fork's
+# extensions (26-34). Most are regexes, listed here; #7, #24, #31 and the title-case
+# half of #20 are counted by functions, listed in HEURISTICS. #19 and #20 each have
+# two parts with their own names and weights.
 # profile_carveouts maps profile -> multiplier (1.0 default; 0.0 disables; 0.5 reduces).
 
 
@@ -63,141 +65,222 @@ def _re(p: str, flags: int = re.IGNORECASE) -> re.Pattern[str]:
 
 
 PATTERNS: list[Pattern] = [
-    # 1 Significance inflation
-    # Each phrase is counted by one pattern only. "serves as", "stands as" and
-    # "represents a" belong to #8; "testament", "pivotal" and "landscape" to #7;
-    # "underscoring" to #3.
+    # ---- A. Staging instead of stating (1-5) ----
+    # 1 Not X but Y: the paired form, "it's not X, it's Y", the split-sentence form
+    # ("This does not mean X. It means Y.") and the clipped tail (", no guessing.")
     Pattern(
         1,
-        "significance_inflation",
+        "not_x_but_y",
         _re(
-            r"\b(reflects? (a )?broader|setting the stage for|indelible mark|"
-            r"deeply rooted|focal point|key turning point)\b"
+            r"\b(it['‘’]s not (just|only|merely) about|not (just|only|merely) [^.,;!?\n]{1,40},?\s+but\b|"
+            r"it['‘’]s not [^.,;!?\n]{1,40}[,;]\s*it['‘’]s\b|"
+            r"does(n['‘’]t| not) mean\b[^.!?\n]{0,80}[.!?]\s+It means\b|, no \w+\.)"
         ),
-        weight=1.5,
+        weight=1.2,
     ),
-    # 2 Notability name-dropping
+    # 2 One-line closers and dramatic fragments
     Pattern(
         2,
-        "notability_name_dropping",
+        "one_line_closers",
         _re(
-            r"\b(cited in|featured in|covered by|written by a leading expert|active social media presence)\b"
+            r"[.!?]\s+(No|Not|Just|Gone)\b[^.!?\n]{0,28}[.!?]\s+(No|Not|Just|Gone)\b|"
+            r"\b(let that sink in|read that again|that(?: is|['‘’]s) the real win)\b"
         ),
         weight=1.0,
     ),
-    # 3 Superficial -ing analyses
+    # 3 Sayings that sound deep
     Pattern(
         3,
-        "superficial_ing",
+        "deep_sayings",
         _re(
-            r"\b(highlighting|underscoring|emphasizing|symbolizing|reflecting|"
-            r"contributing to|cultivating|encompassing|showcasing)\s+\b"
+            r"\b(at its core|in reality|what really matters|fundamentally|"
+            r"the deeper issue|the heart of the matter|the real question|becomes? a trap|"
+            r"(is|are|was|were|becomes?) the (language|currency|architecture) of|"
+            r"not a tool but a mirror)\b"
         ),
         weight=1.2,
     ),
-    # 4 Promotional language
+    # 4 Staged run-up before the point: announcements and staged candor
     Pattern(
         4,
-        "promotional",
+        "staged_runup",
         _re(
-            r"\b(nestled|breathtaking|stunning|vibrant|boasts?|in the heart of|"
-            r"renowned for|must[- ]visit|profound|groundbreaking|exemplifies|"
-            r"a commitment to)\b"
+            r"\b(let['‘’]s (dive in|explore|break this down|take a look)|"
+            r"here['‘’]s what you need to know|now let['‘’]s look at|"
+            r"without further ado|heads up|quick note|before I forget|"
+            r"one thing that bit me)\b|"
+            r"(?:^|[.!?]\s+|\n\s*)(Honestly\?|Look,|Here['‘’]s the thing|"
+            r"The thing is,|Let['‘’]s be honest|Real talk)"
         ),
         weight=1.5,
     ),
-    # 5 Vague attribution
+    # 5 Arguing with no one: unraised objections and options no reader would weigh
     Pattern(
         5,
-        "vague_attribution",
+        "arguing_with_no_one",
         _re(
-            r"\b(experts? (argue|believe|say|note)|industry (reports|observers)|"
-            r"observers (have )?(noted|cited)|some (critics|sources|publications))\b"
-        ),
-        weight=1.5,
-        profile_carveouts={"commit": 0.0},
-    ),
-    # 6 Formulaic challenges section
-    Pattern(
-        6,
-        "formulaic_challenges",
-        _re(
-            r"\b(despite (its|these) (challenges|drawbacks|limitations)|"
-            r"continues to thrive|future (outlook|prospects)|challenges? and legacy)\b"
-        ),
-        weight=1.5,
-    ),
-    # 7 AI vocabulary
-    # Figurative "gate/gated" is omitted: indistinguishable from technical usage
-    # (feature gates, gated APIs) in regex.
-    Pattern(
-        7,
-        "ai_vocabulary",
-        _re(
-            r"\b(delve|delves|delving|tapestry|landscape|testament|underscore[sd]?|"
-            r"intricate|intricacies|interplay|garner[sed]*|pivotal|aligns? with|"
-            r"foster(s|ed|ing)?|enduring|enhanc(e|ed|ing|es|ement)|valuable insights?|"
-            r"crucial|quietly)\b"
+            r"\b(this isn['‘’]t (mainly|really) about|this is not (about|to say)|"
+            r"I['‘’]m not (saying|arguing)|don['‘’]t get me wrong|"
+            r"some might say[^.!?]{0,60}but|"
+            r"a tempting (approach|option) would be|one might be tempted to|"
+            r"an obvious approach would be|it would be easy to just|"
+            r"you might think[^.!?]{0,60}but)\b"
         ),
         weight=1.0,
     ),
-    # 8 Copula avoidance
-    Pattern(
-        8,
-        "copula_avoidance",
-        _re(r"\b(serves? as|stands? as|functions? as|represents? a|marks? a)\s+\w+"),
-        weight=0.8,
-    ),
-    # 9 Negative parallelisms
+    # ---- B. Rhythm by rule (6-11) ----
+    # 6 Forced triads (any "A, B, and C" — coarse; #31 catches paragraphs of them)
+    Pattern(6, "forced_triads", _re(r"\b\w+,\s*\w+,?\s*and\s+\w+\b"), weight=0.5),
+    # 7 Repeated sentence openings: counted by a function, see HEURISTICS
+    # 8 Dashes: em dashes, and en dashes or double hyphens used as dashes. Unspaced
+    # en dashes are left alone because they are number ranges (1990–2000).
+    Pattern(8, "dashes", _re(r"—|\s–\s|\s--\s"), weight=0.4, profile_carveouts={"academic": 0.2}),
+    # 9 Stacked qualifiers
     Pattern(
         9,
-        "negative_parallelism",
+        "stacked_qualifiers",
         _re(
-            r"\b(it['‘’]s not (just|only|merely) about|not (just|only|merely) [^.,;!?\n]{1,40},?\s+but\b|, no \w+\.)"
-        ),
-        weight=1.2,
-    ),
-    # 10 Rule of three (any "A, B, and C" — coarse; we count occurrences per paragraph in scoring)
-    Pattern(10, "rule_of_three", _re(r"\b\w+,\s*\w+,?\s*and\s+\w+\b"), weight=0.5),
-    # 11 Synonym cycling: counted by a function, see HEURISTICS
-    # 12 False ranges
-    Pattern(
-        12,
-        "false_ranges",
-        _re(
-            r"\bfrom\s+(?:the\s+)?\w+\s+to\s+(?:the\s+)?\w+(?:\s*,\s*from\s+(?:the\s+)?\w+\s+to\s+(?:the\s+)?\w+)+"
+            r"\b(could potentially|might arguably|may possibly|might (potentially )?have some|"
+            r"in some cases it may|it['‘’]s also possible)\b"
         ),
         weight=1.5,
     ),
-    # 13 Passive voice / subjectless fragments — heuristic
+    # 10 Hyphenated pairs. The hyphen is correct before a noun ("a high-quality
+    # report"), so only the predicate position counts: the pair followed by
+    # punctuation or the end of a line ("the report is high-quality."). A comma
+    # before another hyphenated pair is a stacked modifier ("a high-quality,
+    # data-driven report"), so it does not count.
     Pattern(
-        13,
+        10,
+        "hyphenated_pairs",
+        _re(
+            r"\b(cross-functional|data-driven|client-facing|decision-making|"
+            r"end-to-end|real-time|long-term|high-quality|well-known)\b"
+            r"(?=[.;:!?)]|,(?!\s*\w+-\w)|[ \t]*$)",
+            re.IGNORECASE | re.MULTILINE,
+        ),
+        weight=0.4,
+        profile_carveouts={"academic": 0.6},
+    ),
+    # 11 Passive voice / subjectless fragments (a rough regex: a form of "be" + an -ed word)
+    Pattern(
+        11,
         "passive_voice",
         _re(r"\b(is|are|was|were|been|being)\s+\w+ed\b"),
         weight=0.3,
         profile_carveouts={"academic": 0.4},
     ),
-    # 14 Em-dash overuse
-    Pattern(14, "em_dash_overuse", _re(r"—"), weight=0.4, profile_carveouts={"academic": 0.2}),
-    # 15 Boldface overuse — count **bold** phrases per paragraph.
-    # Bold is a legitimate emphasis mark; only its density is a tell, so the weight is
-    # low everywhere and off in docs, where bolded terms and labels are house style.
+    # ---- C. Inflation and borrowed authority (12-18) ----
+    # 12 AI vocabulary. Figurative "gate", "robust" and "key" are omitted: a regex
+    # cannot tell them from technical usage (feature gates, robust estimators).
+    # "vibrant" belongs to #16, "emphasizing" and "showcasing" to #15, and
+    # "meticulous review" to #33, so each is counted once.
+    Pattern(
+        12,
+        "ai_vocabulary",
+        _re(
+            r"\b(delve|delves|delving|tapestry|landscape|testament|underscore[sd]?|"
+            r"intricate|intricacies|interplay|garner[sed]*|pivotal|aligns? with|"
+            r"foster(s|ed|ing)?|enduring|enhanc(e|ed|ing|es|ement)|valuable|"
+            r"crucial|quietly|additionally|bolstered|deep dive|showcases?|showcased|"
+            r"meticulously)\b"
+        ),
+        weight=1.0,
+    ),
+    # 13 Inflated significance, at all three scales: the phrase, the stock
+    # "challenges and outlook" section, and the upbeat send-off.
+    # Each phrase is counted by one pattern only. "serves as", "stands as" and
+    # "represents a" belong to #18; "testament", "pivotal" and "landscape" to #12;
+    # "underscoring" to #15.
+    Pattern(
+        13,
+        "inflated_significance",
+        _re(
+            r"\b(reflects? (a )?broader|setting the stage for|indelible mark|"
+            r"deeply rooted|focal point|key turning point|plays? a (key|vital|significant) role|"
+            r"lasting legacy|"
+            r"despite (its|these) (challenges|drawbacks|limitations)|"
+            r"continues to thrive|future (outlook|prospects)|challenges? and legacy|"
+            r"the future looks bright|exciting times (lie ahead|await)|"
+            r"a step in the right direction|continues to evolve)\b"
+        ),
+        weight=1.5,
+    ),
+    # 14 Vague connection or association. Common in technical and academic prose
+    # ("the risk associated with"), so it weighs little on its own.
+    Pattern(
+        14,
+        "vague_connection",
+        _re(
+            r"\b(in association with|associated with|in connection with|"
+            r"connected to|linked to|tied to)\b"
+        ),
+        weight=0.5,
+        profile_carveouts={"academic": 0.6, "commit": 0.0},
+    ),
+    # 15 Shallow -ing riders
     Pattern(
         15,
-        "boldface_overuse",
+        "shallow_ing",
+        _re(
+            r"\b(highlighting|underscoring|emphasizing|ensuring|symbolizing|reflecting|"
+            r"contributing to|cultivating|encompassing|showcasing)\s+\b"
+        ),
+        weight=1.2,
+    ),
+    # 16 Sales language
+    Pattern(
+        16,
+        "sales_language",
+        _re(
+            r"\b(nestled|breathtaking|stunning|vibrant|boasts?|in the heart of|"
+            r"renowned for|must[- ]visit|profound|groundbreaking|exemplifies|"
+            r"a commitment to|diverse array|natural beauty|rich cultural)\b"
+        ),
+        weight=1.5,
+    ),
+    # 17 Borrowed authority: unnamed experts, and prestige lists standing in for
+    # what was said
+    Pattern(
+        17,
+        "borrowed_authority",
+        _re(
+            r"\b(experts? (argue|believe|say|note)|industry (reports|observers)|"
+            r"observers (have )?(noted|cited)|some (critics|sources|publications)|"
+            r"cited in|featured in|covered by|written by a leading expert|"
+            r"active social media presence)\b"
+        ),
+        weight=1.5,
+        profile_carveouts={"commit": 0.0},
+    ),
+    # 18 Avoiding is, are, and has
+    Pattern(
+        18,
+        "copula_avoidance",
+        _re(r"\b(serves? as|stands? as|functions? as|operates? as|represents? a|marks? a)\s+\w+"),
+        weight=0.8,
+    ),
+    # ---- D. Formatting by rule (19-21) ----
+    # 19 Bold as decoration, in two parts with different carve-outs.
+    # Bold density: a legitimate emphasis mark, so the weight is low everywhere and
+    # off in docs, where bolded terms and labels are house style.
+    Pattern(
+        19,
+        "bold_decoration",
         _re(r"\*\*[^*]{1,40}\*\*"),
         weight=0.3,
         profile_carveouts={"docs": 0.0, "blog": 0.5},
     ),
-    # 16 Inline-header lists. The bold label is not the tell and is never flagged: a
-    # bulleted label is a normal way to write a reference list. What is flagged is the
-    # label restating itself ("**Performance:** Performance has improved"), which makes
-    # the list look like structure while carrying one fact per bullet. The backreference
-    # is what does the work; the (?i:) group lets "**User Experience:** The user
-    # experience..." match while keeping the label itself capitalised.
+    # Bold labels. The label is not the tell and is never flagged: a bulleted label
+    # is a normal way to write a reference list. What is flagged is the label
+    # restating itself ("**Performance:** Performance has improved"), which makes
+    # the list look like structure while carrying one fact per bullet. The
+    # backreference is what does the work; the (?i:) group lets "**User
+    # Experience:** The user experience..." match while keeping the label itself
+    # capitalised.
     Pattern(
-        16,
-        "inline_header_lists",
+        19,
+        "restated_bold_labels",
         _re(
             r"^[ \t]*[-*][ \t]+\*\*(?P<label>[A-Z][^*\n]{1,40}?):?\*\*:?[ \t]+"
             r"(?i:(?:the |a |an )?(?P=label))\b",
@@ -205,107 +288,43 @@ PATTERNS: list[Pattern] = [
         ),
         weight=1.0,
     ),
-    # 17 Title Case Headings: counted by a function, see HEURISTICS
-    # 18 Emojis as bullets / decorations
-    Pattern(18, "emojis", _re("[\U0001f300-\U0001faff☀-➿]"), weight=1.5),
-    # 19 Curly quotes
-    Pattern(19, "curly_quotes", _re(r"[‘’“”]"), weight=0.5),
-    # 20 Chatbot artifacts
+    # 20 Decorative headings: title case is counted by a function (HEURISTICS),
+    # emojis and arrows here
+    Pattern(20, "decorative_emojis", _re("[\U0001f300-\U0001faff☀-➿]"), weight=1.5),
+    # 21 Curly quotes
+    Pattern(21, "curly_quotes", _re(r"[‘’“”]"), weight=0.5),
+    # ---- E. Leftovers from the chat and the draft (22-25) ----
+    # 22 Chatbot residue: greetings, praise, offers, and sign-offs
     Pattern(
-        20,
-        "chatbot_artifacts",
+        22,
+        "chatbot_residue",
         _re(
             r"\b(I hope this helps|let me know if|here is (a|an|the)|of course!|"
-            r"certainly!|you['‘’]re absolutely right|would you like (me to)?|happy to help)\b"
+            r"certainly!|you['‘’]re absolutely right|would you like (me to)?|happy to help|"
+            r"want me to|should I continue|"
+            r"great question!|excellent point|that['‘’]s a (great|fantastic|wonderful)|"
+            r"brilliant observation)(?!\w)"
+            # (?!\w), not \b: after "question!" a closing \b never matches.
         ),
         weight=2.0,
     ),
-    # 21 Knowledge-cutoff disclaimers
+    # 23 Knowledge-limit disclaimers and guesses
     Pattern(
-        21,
+        23,
         "cutoff_disclaimer",
         _re(
             r"\b(as of my (last )?(training|knowledge)|while specific details (are|appear) (limited|scarce)|"
             r"based on (the )?(available|publicly available) information|"
-            r"up to my (last )?training update)\b"
+            r"up to my (last )?training update|not publicly available|"
+            r"not widely (documented|disclosed)|maintains a low profile|"
+            r"keeps personal details private|in the (provided|available) sources)\b"
         ),
         weight=2.0,
     ),
-    # 22 Sycophantic / servile tone
-    Pattern(
-        22,
-        "sycophantic",
-        _re(
-            r"\b(great question!|excellent point|that['‘’]s a (great|fantastic|wonderful)|brilliant observation)\b"
-        ),
-        weight=2.0,
-    ),
-    # 23 Filler phrases
-    Pattern(
-        23,
-        "filler_phrases",
-        _re(
-            r"\b(in order to|due to the fact that|at this point in time|"
-            r"in the event that|has the ability to|it is important to note that|"
-            r"with regards to|in light of the fact that)\b"
-        ),
-        weight=1.0,
-    ),
-    # 24 Excessive hedging
-    Pattern(
-        24,
-        "excessive_hedging",
-        _re(r"\b(could potentially possibly|might (potentially )?have some|may possibly)\b"),
-        weight=1.5,
-    ),
-    # 25 Generic positive conclusions
+    # 24 A heading repeated in the first sentence: counted by a function, see HEURISTICS
+    # 25 Writing about the previous version (docs describing the old implementation)
     Pattern(
         25,
-        "generic_conclusion",
-        _re(
-            r"\b(the future looks bright|exciting times (lie ahead|await)|"
-            r"a step in the right direction|continues to evolve)\b"
-        ),
-        weight=1.5,
-    ),
-    # 26 Hyphenated word-pair overuse
-    Pattern(
-        26,
-        "hyphenated_pairs",
-        _re(
-            r"\b(cross-functional|data-driven|client-facing|decision-making|"
-            r"end-to-end|real-time|long-term|high-quality|well-known)\b"
-        ),
-        weight=0.4,
-        profile_carveouts={"academic": 0.6},
-    ),
-    # 27 Persuasive authority tropes
-    Pattern(
-        27,
-        "persuasive_authority",
-        _re(
-            r"\b(at its core|in reality|what really matters|fundamentally|"
-            r"the deeper issue|the heart of the matter|the real question)\b"
-        ),
-        weight=1.2,
-    ),
-    # 28 Signposting announcements
-    Pattern(
-        28,
-        "signposting",
-        _re(
-            r"\b(let['‘’]s (dive in|explore|break this down|take a look)|"
-            r"here['‘’]s what you need to know|now let['‘’]s look at|"
-            r"without further ado|heads up|quick note|before I forget|"
-            r"one thing that bit me)\b"
-        ),
-        weight=1.5,
-    ),
-    # 29 Fragmented headers: counted by a function, see HEURISTICS
-    # ---- Patterns 30-35 (upstream) ----
-    # 30 Previous-version writing (docs describing the old implementation, not current behavior)
-    Pattern(
-        30,
         "previous_version_writing",
         _re(
             r"\b(replac(es?|ed|ing) the (previous|old|earlier)|"
@@ -315,59 +334,10 @@ PATTERNS: list[Pattern] = [
         weight=1.0,
         profile_carveouts={"commit": 0.0},
     ),
-    # 31 Forced punchlines (rows of dramatic short fragments)
+    # ---- Patterns 26-34 (this fork's extensions) ----
+    # 26 Citation laundering
     Pattern(
-        31,
-        "forced_punchlines",
-        _re(r"[.!?]\s+(No|Not|Just|Gone)\b[^.!?\n]{0,28}[.!?]\s+(No|Not|Just|Gone)\b"),
-        weight=1.0,
-    ),
-    # 32 Formulaic sayings (pseudo-profound aphorisms)
-    Pattern(
-        32,
-        "formulaic_sayings",
-        _re(
-            r"\b(becomes? a trap|(is|are|was|were|becomes?) the (language|currency|architecture) of|"
-            r"not a tool but a mirror)\b"
-        ),
-        weight=1.0,
-    ),
-    # 33 Fake candid openers (staged candor at sentence start)
-    Pattern(
-        33,
-        "fake_candid_openers",
-        _re(
-            r"(?:^|[.!?]\s+|\n\s*)(Honestly\?|Look,|Here['‘’]s the thing|"
-            r"The thing is,|Let['‘’]s be honest|Real talk)"
-        ),
-        weight=1.2,
-    ),
-    # 34 Shadowboxing (answering objections no one raised)
-    Pattern(
-        34,
-        "shadowboxing",
-        _re(
-            r"\b(this isn['‘’]t (mainly|really) about|this is not (about|to say)|"
-            r"I['‘’]m not (saying|arguing)|don['‘’]t get me wrong|"
-            r"some might say[^.!?]{0,60}but)\b"
-        ),
-        weight=1.0,
-    ),
-    # 35 Fake alternatives (rejecting options no reader would consider)
-    Pattern(
-        35,
-        "fake_alternatives",
-        _re(
-            r"\b(a tempting (approach|option) would be|one might be tempted to|"
-            r"an obvious approach would be|it would be easy to just|"
-            r"you might think[^.!?]{0,60}but)\b"
-        ),
-        weight=1.0,
-    ),
-    # ---- Patterns 36-44 (this fork's extensions) ----
-    # 36 Citation laundering
-    Pattern(
-        36,
+        26,
         "citation_laundering",
         _re(
             r"\b(studies (have )?(show|shows|shown|suggest|reported|indicate)|"
@@ -379,9 +349,9 @@ PATTERNS: list[Pattern] = [
         weight=2.0,
         profile_carveouts={"academic": 2.5, "commit": 0.0},
     ),
-    # 37 Manuscript boilerplate
+    # 27 Manuscript boilerplate
     Pattern(
-        37,
+        27,
         "manuscript_boilerplate",
         _re(
             r"\b(to the best of our knowledge|fills a critical gap|of paramount importance|"
@@ -390,9 +360,9 @@ PATTERNS: list[Pattern] = [
         weight=2.5,
         profile_carveouts={"academic": 3.0, "blog": 1.5, "docs": 1.0, "commit": 0.0},
     ),
-    # 38 Tutorial-script scaffolding
+    # 28 Tutorial-script scaffolding
     Pattern(
-        38,
+        28,
         "tutorial_scaffolding",
         _re(
             r"\b(let['‘’]s walk through|let['‘’]s start with|here['‘’]s the high-level|"
@@ -400,25 +370,25 @@ PATTERNS: list[Pattern] = [
         ),
         weight=1.2,
     ),
-    # 39 Stat parade without effect size
+    # 29 Stat parade without effect size
     Pattern(
-        39,
+        29,
         "stat_parade",
         _re(r"\bp\s*[<>=]\s*0?\.\d+(?![^.]{0,80}(95\s*%|CI|Cohen|effect size|d\s*=))"),
         weight=1.5,
         profile_carveouts={"academic": 2.0, "blog": 0.5},
     ),
-    # 40 Temporal hedge ladders
+    # 30 Temporal hedge ladders
     Pattern(
-        40,
+        30,
         "temporal_hedges",
         _re(r"\b(currently|at present|at the time of writing|as of (now|today))\b"),
         weight=0.6,
     ),
-    # 41 Polysyndetic tripleting: counted by a function, see HEURISTICS
-    # 42 AI-flavoured commit verbs
+    # 31 Polysyndetic tripleting: counted by a function, see HEURISTICS
+    # 32 AI-flavoured commit verbs
     Pattern(
-        42,
+        32,
         "ai_commit_verbs",
         _re(
             r"^(feat|fix|chore|refactor|perf|docs|style|test)(\([^)]+\))?:\s+"
@@ -428,9 +398,9 @@ PATTERNS: list[Pattern] = [
         weight=2.0,
         profile_carveouts={"commit": 3.0, "academic": 0.0, "docs": 0.0, "blog": 0.0},
     ),
-    # 43 Methodology pseudo-precision
+    # 33 Methodology pseudo-precision
     Pattern(
-        43,
+        33,
         "methodology_pseudo",
         _re(
             r"\b(careful evaluation|rigorous analysis|comprehensive (study|review|analysis)|"
@@ -440,9 +410,9 @@ PATTERNS: list[Pattern] = [
         weight=2.0,
         profile_carveouts={"academic": 2.5, "commit": 0.0},
     ),
-    # 44 Dissertation-grade hedging
+    # 34 Dissertation-grade hedging
     Pattern(
-        44,
+        34,
         "dissertation_hedging",
         _re(
             r"\b(it can be argued that|one might (consider|suggest|argue)|"
@@ -456,40 +426,44 @@ PATTERNS: list[Pattern] = [
 
 # ---- Heuristic computations for placeholder patterns --------------------------
 
-# Synonym groups for synonym-cycling detection.
-SYNONYM_GROUPS: list[set[str]] = [
-    {"hero", "protagonist", "main character", "central figure", "individual"},
-    {"company", "organization", "organisation", "firm", "enterprise", "business"},
-    {"author", "writer", "scribe", "novelist"},
-    {"event", "occurrence", "incident", "happening"},
-    {"problem", "issue", "challenge", "difficulty", "obstacle"},
-]
-_SYNONYM_GROUP_RES = [
-    [re.compile(rf"\b{re.escape(term)}\b", re.I) for term in group] for group in SYNONYM_GROUPS
-]
-
 _PARAGRAPH_SPLIT_RE = re.compile(r"\n\s*\n")
 _HEADING_RE = re.compile(r"^\s*#{1,6}\s+(.+)$")
 _WORD_HEADING_RE = re.compile(r"^\s*#{1,6}\s+(\w.*)$")
 _WORD_RE = re.compile(r"[A-Za-z]+")
 
 
-def count_synonym_cycling(text: str) -> int:
-    """#11. Heuristic — for each paragraph, count repeated noun-meaning across 3+ variants.
+_SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+")
+# Articles open sentences by grammar, not habit; three "The ..." in a row is normal.
+_OPENING_EXEMPT = frozenset(["the", "a", "an"])
+# Bullets, numbered items, headings, tables and quotes: formats, not prose.
+_LIST_LINE_RE = re.compile(r"^\s*(?:[-*+#|>]|\d+[.)])")
 
-    Coarse: detects when 3+ candidate synonyms (e.g. hero / protagonist / main character)
-    co-occur in the same paragraph. Reports paragraphs that match.
+
+def count_repeated_openings(text: str) -> int:
+    """#7. Runs of 3+ consecutive sentences in a paragraph that open with the same word.
+
+    "She noted the door. She noted the lock. She filed both away." counts once.
+    List items and headings are dropped before splitting, since a list of
+    "Add ..." items, bulleted or numbered, is a format, not a habit.
     """
     count = 0
     for para in _PARAGRAPH_SPLIT_RE.split(text):
-        for group in _SYNONYM_GROUP_RES:
-            if sum(1 for term_re in group if term_re.search(para)) >= 3:
+        prose = " ".join(line for line in para.splitlines() if not _LIST_LINE_RE.match(line))
+        run, prev = 0, None
+        for sentence in _SENTENCE_SPLIT_RE.split(prose.strip()):
+            words = _WORD_RE.findall(sentence)
+            first = words[0].lower() if words else None
+            if first in _OPENING_EXEMPT:
+                first = None
+            run = run + 1 if first is not None and first == prev else 1
+            prev = first
+            if run == 3:
                 count += 1
     return count
 
 
 def count_title_case_headings(text: str) -> int:
-    """#17. Lines starting with #/##/###/etc where >50% of content words are capitalised."""
+    """#20. Lines starting with #/##/###/etc where >50% of content words are capitalised."""
     count = 0
     for line in text.splitlines():
         m = _HEADING_RE.match(line)
@@ -541,14 +515,14 @@ def _restates_heading(heading: str, line: str) -> bool:
 
 
 def count_fragmented_headers(text: str) -> int:
-    """#29. Heading followed by a short standalone line that restates the heading.
+    """#24. Heading followed by a short standalone line that restates the heading.
 
     Three conditions, all required: the line after the heading is short (<= 8
     words), it stands alone as its own paragraph, and it restates the heading
     rather than saying something new. The first two are checked by
     ``_standalone_stub``, the third by ``_restates_heading``.
 
-    The restatement test is what makes this pattern #29 rather than "heading
+    The restatement test is what makes this pattern #24 rather than "heading
     followed by a short line": at least half the heading's content words have to
     reappear. A heading followed by a genuinely short sentence that introduces
     new material is normal prose and must not fire.
@@ -610,7 +584,7 @@ _TRIPLET_RE = re.compile(
 
 
 def count_polysyndetic_tripleting(text: str) -> int:
-    """#41. Count paragraphs with 3+ 'X, Y, and Z' patterns.
+    """#31. Count paragraphs with 3+ 'X, Y, and Z' patterns.
 
     Items may carry a determiner, so "the code, the tests, and the docs" counts.
     An earlier version matched only bare single words, which missed most real
@@ -631,10 +605,10 @@ def count_polysyndetic_tripleting(text: str) -> int:
 
 # Patterns whose counts come from a function rather than a regex: (id, name, count, weight).
 HEURISTICS = (
-    (11, "synonym_cycling", count_synonym_cycling, 1.0),
-    (17, "title_case_headings", count_title_case_headings, 0.7),
-    (29, "fragmented_headers", count_fragmented_headers, 1.0),
-    (41, "polysyndetic_tripleting", count_polysyndetic_tripleting, 1.5),
+    (7, "repeated_openings", count_repeated_openings, 0.5),
+    (20, "title_case_headings", count_title_case_headings, 0.7),
+    (24, "repeated_heading", count_fragmented_headers, 1.0),
+    (31, "polysyndetic_tripleting", count_polysyndetic_tripleting, 1.5),
 )
 
 # Upper bound (exclusive) of each score band, lowest first.
@@ -790,11 +764,11 @@ def run_hook() -> int:
 
 
 # Printed under every human-readable score. A number this tool calls "clean" is a
-# statement about 44 known patterns and nothing else -- see DETECTION_ROBUSTNESS.md
+# statement about 34 known patterns and nothing else -- see DETECTION_ROBUSTNESS.md
 # for why a classifier trained on Claude's phrase distributions is a different
 # question entirely. Deliberately absent from --json: machines do not misread a
 # verdict, people do.
-SCORE_SCOPE = "44 known patterns, not detector evasion — see DETECTION_ROBUSTNESS.md"
+SCORE_SCOPE = "34 known patterns, not detector evasion — see DETECTION_ROBUSTNESS.md"
 
 
 def main(argv: list[str] | None = None) -> int:

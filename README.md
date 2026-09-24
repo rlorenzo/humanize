@@ -1,6 +1,6 @@
 # humanize
 
-> Anti-slop framework for Claude Code. Skill + scorer + agent + hook + always-on rule. Strips 44 AI-writing patterns. Domain-aware (academic / docs / blog / commit). Extends [blader/humanizer](https://github.com/blader/humanizer) (synced at v2.11.2).
+> Anti-slop framework for Claude Code. Skill + scorer + agent + hook + always-on rule. Strips 34 AI-writing patterns. Domain-aware (academic / docs / blog / commit). Extends [blader/humanizer](https://github.com/blader/humanizer) (synced at v3.0.0).
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Compatible: Claude Code](https://img.shields.io/badge/Compatible-Claude%20Code-blue)](https://claude.ai/claude-code)
@@ -21,23 +21,23 @@
 
 Plus four **domain profiles** (academic, docs, blog, commit) with their own carve-outs. Em-dashes are fine in scientific prose. Passive voice is correct in IMRaD methods. Vague attributions are flagged hard in academic but allowed (with citation) in docs. The framework adapts.
 
-## What it detects (44 patterns)
+## What it detects (34 patterns)
 
-Inherits 35 from [blader/humanizer](https://github.com/blader/humanizer) v2.11.2 (significance inflation, em-dash overuse, rule of three, sycophancy, shadowboxing, fake alternatives, …) — summaries in [SKILL.md](SKILL.md), full text with before/after in [patterns/core.md](patterns/core.md). Upstream's no-fabrication rule and false-positive guardrails are adopted too.
+Inherits 25 from [blader/humanizer](https://github.com/blader/humanizer) v3.0.0, ordered strongest first in five groups: staging instead of stating (not-X-but-Y contrasts, one-line closers, staged openers), rhythm by rule (forced triads, dashes), inflation and borrowed authority, formatting by rule, and leftovers from the chat. Summaries in [SKILL.md](SKILL.md), full text with before/after in [patterns/core.md](patterns/core.md). Upstream's no-fabrication rule and "when not to act" guardrails are adopted too.
 
-New extensions (#36-44):
+New extensions (#26-34):
 
 | # | Pattern | Why it matters |
 |---|---|---|
-| 36 | Citation laundering ("studies show" with no citation) | Academic-killer |
-| 37 | Manuscript boilerplate ("To the best of our knowledge…") | Generic paper opener |
-| 38 | Tutorial-script scaffolding ("Let's walk through…") | Doc tutorial-script feel |
-| 39 | Stat parade without effect size | Frequentist hedging |
-| 40 | Temporal hedge ladders | Stacked time-disclaimers |
-| 41 | Polysyndetic tripleting | Stronger rule-of-three |
-| 42 | AI-flavoured commit verbs ("improves", "enhances") | Commit-specific |
-| 43 | Methodology pseudo-precision ("careful", "rigorous", "comprehensive") | Self-praise without specifics |
-| 44 | Dissertation-grade hedging where stance is required | Academic-only |
+| 26 | Citation laundering ("studies show" with no citation) | Academic-killer |
+| 27 | Manuscript boilerplate ("To the best of our knowledge…") | Generic paper opener |
+| 28 | Tutorial-script scaffolding ("Let's walk through…") | Doc tutorial-script feel |
+| 29 | Stat parade without effect size | Frequentist hedging |
+| 30 | Temporal hedge ladders | Stacked time-disclaimers |
+| 31 | Polysyndetic tripleting | Stronger rule-of-three |
+| 32 | AI-flavoured commit verbs ("improves", "enhances") | Commit-specific |
+| 33 | Methodology pseudo-precision ("careful", "rigorous", "comprehensive") | Self-praise without specifics |
+| 34 | Dissertation-grade hedging where stance is required | Academic-only |
 
 ## Install (Claude Code plugin — recommended)
 
@@ -98,13 +98,13 @@ git clone --depth 1 https://github.com/rlorenzo/humanize.git /tmp/humanize &&
 $ python ~/.claude/skills/humanize/scripts/humanize_score.py STAGE3/MANUSCRIPT.md
 humanize_score: 38.4/100  (minor_residue)
 profile:        academic  (3,420 words)
-scope:          44 known patterns, not detector evasion — see DETECTION_ROBUSTNESS.md
+scope:          34 known patterns, not detector evasion — see DETECTION_ROBUSTNESS.md
 top offenders:
   - methodology_pseudo                weighted=12.50
-  - significance_inflation            weighted=7.50
+  - inflated_significance             weighted=7.50
   - citation_laundering               weighted=5.00
   - hyphenated_pairs                  weighted=2.40
-  - excessive_hedging                 weighted=1.50
+  - stacked_qualifiers                weighted=1.50
 ```
 
 ```bash
@@ -114,7 +114,7 @@ python humanize_score.py --json --profile=docs README.md
 
 ### What the score does not mean
 
-The number is a weighted rate of the 44 patterns in this catalogue, per 100 words.
+The number is a weighted rate of the 34 patterns in this catalogue, per 100 words.
 A long clean draft and a short one score the same. That is a claim about writing
 quality, and nothing more.
 
@@ -122,7 +122,7 @@ It is **not** a prediction about any AI detector. [Pangram](https://www.pangram.
 which trains on the phrase distributions of specific models rather than on
 perplexity, detects at roughly 18% where perplexity-and-burstiness detectors sit
 near 0.24% — and clearing this catalogue does not move that number, because the two
-are measuring different things. A score of 0 means these 44 patterns are absent. It
+are measuring different things. A score of 0 means these 34 patterns are absent. It
 does not mean text will pass a classifier, and nothing here should be relied on as
 though it did.
 
@@ -137,7 +137,7 @@ catching it at review.
 ### Statistical check
 
 `burstiness_check.py` measures what the pattern list structurally cannot: a draft
-can score clean on all 44 patterns and still read as machine-written because every
+can score clean on all 34 patterns and still read as machine-written because every
 sentence is the same length.
 
 ```bash
@@ -271,9 +271,9 @@ MIT — see [LICENSE](LICENSE).
 ## Credits
 
 Original author: Kimal Honour Djam ([@kimhons](https://github.com/kimhons)) — the
-six-layer design, and patterns 36-44.
+six-layer design, and patterns 26-34.
 
-Patterns 1-35 come from [blader/humanizer](https://github.com/blader/humanizer),
+Patterns 1-25 come from [blader/humanizer](https://github.com/blader/humanizer),
 which draws them from Wikipedia's "Signs of AI writing".
 
 Maintained as a fork by Rex Lorenzo ([@rlorenzo](https://github.com/rlorenzo)).
