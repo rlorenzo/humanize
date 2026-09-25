@@ -346,12 +346,14 @@ def test_hook_mode_threshold_env(tmp_path):
 def test_bash_hook_end_to_end(tmp_path, filename):
     f = tmp_path / filename
     f.write_text(SLOP, encoding="utf-8")
+    # No HUMANIZE_SCORER override: HOOK lives at REPO/hooks/, so the sibling
+    # lookup already resolves to REPO/humanize_anti_slop/humanize_score.py.
     proc = subprocess.run(
         ["bash", str(HOOK)],
         input=hook_payload(f),
         capture_output=True,
         text=True,
-        env={**os.environ, "HUMANIZE_SCORER": str(SCORER)},
+        env=os.environ.copy(),
     )
     assert proc.returncode == 0
     assert "additionalContext" in json.loads(proc.stdout)["hookSpecificOutput"]
@@ -424,24 +426,77 @@ def test_debug_reports_why_a_clean_file_produced_no_warning(tmp_path):
 def test_bash_hook_passes_debug_through_but_swallows_it_otherwise(tmp_path):
     # The wrapper sends stderr to /dev/null normally; a silently broken scorer is
     # exactly how this project's hook bug went unnoticed for months.
+    #
+    # There is no env override to point the hook at a broken scorer anymore, so
+    # this mirrors the trusted repo/plugin layout the sibling lookup resolves at
+    # runtime: a copy of the hook next to a deliberately broken sibling scorer.
     f = tmp_path / "draft.md"
     f.write_text(SLOP)
-    broken = tmp_path / "broken_scorer.py"
-    broken.write_text("this is not valid python (\n")
+    fake_root = tmp_path / "fake_plugin"
+    (fake_root / "hooks").mkdir(parents=True)
+    (fake_root / "humanize_anti_slop").mkdir()
+    hook_copy = fake_root / "hooks" / "humanize-post-write.sh"
+    shutil.copy2(HOOK, hook_copy)
+    (fake_root / "humanize_anti_slop" / "humanize_score.py").write_text(
+        "this is not valid python (\n"
+    )
 
-    env = {**os.environ, "HUMANIZE_SCORER": str(broken)}
     quiet = subprocess.run(
-        ["bash", str(HOOK)], input=hook_payload(f), capture_output=True, text=True, env=env
+        ["bash", str(hook_copy)],
+        input=hook_payload(f),
+        capture_output=True,
+        text=True,
+        env=os.environ.copy(),
     )
     assert quiet.returncode == 0
     assert quiet.stdout.strip() == "" and quiet.stderr.strip() == ""
 
     loud = subprocess.run(
+        ["bash", str(hook_copy)],
+        input=hook_payload(f),
+        capture_output=True,
+        text=True,
+        env={**os.environ, "HUMANIZE_DEBUG": "1"},
+    )
+    assert loud.returncode == 0
+    assert "SyntaxError" in loud.stderr
+
+
+def test_bash_hook_ignores_humanize_scorer_env_override(tmp_path):
+    # Regression: HUMANIZE_SCORER used to let a cloned repo's checked-in
+    # .claude/settings.json env block point the hook at arbitrary Python,
+    # executed with the developer's privileges on the first Write/Edit.
+    f = tmp_path / "draft.md"
+    f.write_text(SLOP)
+    marker = tmp_path / "pwned"
+    evil = tmp_path / "evil.py"
+    evil.write_text(f"open({str(marker)!r}, 'w').close()\n")
+
+    proc = subprocess.run(
         ["bash", str(HOOK)],
         input=hook_payload(f),
         capture_output=True,
         text=True,
-        env={**env, "HUMANIZE_DEBUG": "1"},
+        env={**os.environ, "HUMANIZE_SCORER": str(evil)},
     )
-    assert loud.returncode == 0
-    assert "SyntaxError" in loud.stderr
+    assert proc.returncode == 0
+    assert not marker.exists(), "HUMANIZE_SCORER must not be honored at hook runtime"
+
+
+def test_bash_hook_survives_unset_home(tmp_path):
+    # Regression: CLAUDE_HOME_REAL used to expand $HOME unguarded under
+    # `set -u`, so an environment with HOME unset raised "unbound variable"
+    # on stderr even though the hook still exited 0.
+    f = tmp_path / "draft.md"
+    f.write_text(SLOP)
+    env = {k: v for k, v in os.environ.items() if k != "HOME"}
+
+    proc = subprocess.run(
+        ["bash", str(HOOK)],
+        input=hook_payload(f),
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert proc.returncode == 0
+    assert "unbound variable" not in proc.stderr

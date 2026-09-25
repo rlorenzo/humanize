@@ -17,18 +17,62 @@ set -u
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Scorer lookup order: explicit override, sibling of this script (repo/plugin
-# layout), then the copy install.sh places under $CLAUDE_HOME/skills.
-if [[ -n "${HUMANIZE_SCORER:-}" ]]; then
-    SCORER="$HUMANIZE_SCORER"
-elif [[ -f "$SCRIPT_DIR/../humanize_anti_slop/humanize_score.py" ]]; then
+# Baked in by install.sh (Python literal replacement) for file-based installs. Left as a literal
+# placeholder in the repo/plugin copy, where the sibling lookup below already
+# finds the scorer. Never read from the environment: a cloned repo's
+# .claude/settings.json can set arbitrary env vars, and this used to be
+# HUMANIZE_SCORER / CLAUDE_HOME read at hook runtime, which let a repo point
+# the hook at its own Python and get it executed with no prompt.
+# shellcheck disable=SC2034  # install.sh replaces the token with a shell-quoted path
+HUMANIZE_INSTALLED_SCORER=@@HUMANIZE_INSTALLED_SCORER@@
+
+# Scorer lookup order: sibling of this script (repo/plugin layout, already
+# trusted there), then the path install.sh baked in above.
+if [[ -f "$SCRIPT_DIR/../humanize_anti_slop/humanize_score.py" ]]; then
     SCORER="$SCRIPT_DIR/../humanize_anti_slop/humanize_score.py"
 else
-    SCORER="${CLAUDE_HOME:-$HOME/.claude}/skills/humanize/scripts/humanize_score.py"
+    SCORER="$HUMANIZE_INSTALLED_SCORER"
 fi
+
+# Defense in depth: only ever execute a path that is absolute and resolves
+# under the plugin root or the real Claude home, regardless of which branch
+# above chose it. Blocks a tampered or unsubstituted placeholder outright.
+case "$SCORER" in
+    /*) ;;
+    *)
+        [[ -n "${HUMANIZE_DEBUG:-}" ]] && echo "[humanize:debug] scorer path not absolute: $SCORER" >&2
+        exit 0
+        ;;
+esac
 
 if [[ ! -f "$SCORER" ]]; then
     [[ -n "${HUMANIZE_DEBUG:-}" ]] && echo "[humanize:debug] no scorer found at $SCORER" >&2
+    exit 0
+fi
+
+SCORER_DIR="$(cd "$(dirname "$SCORER")" && pwd -P)"
+# shellcheck disable=SC2015  # intentional: || true just means "empty on failure", handled by the -z check below
+PLUGIN_ROOT="$(cd "$SCRIPT_DIR/.." 2>/dev/null && pwd -P || true)"
+if [[ -z "$PLUGIN_ROOT" ]]; then
+    # Same trap as CLAUDE_HOME_REAL below: an empty root would trust "/*".
+    [[ -n "${HUMANIZE_DEBUG:-}" ]] && echo "[humanize:debug] cannot resolve plugin root" >&2
+    exit 0
+fi
+# shellcheck disable=SC2015  # intentional: || true just means "empty on failure", handled by the -n check below
+CLAUDE_HOME_REAL="$(cd "${HOME:-}/.claude" 2>/dev/null && pwd -P || true)"
+TRUSTED=0
+case "$SCORER_DIR" in
+    "$PLUGIN_ROOT" | "$PLUGIN_ROOT"/*) TRUSTED=1 ;;
+esac
+# Checked separately: an empty CLAUDE_HOME_REAL (no ~/.claude yet) would
+# otherwise turn the pattern into "/*" and trust every absolute path.
+if [[ -n "$CLAUDE_HOME_REAL" ]]; then
+    case "$SCORER_DIR" in
+        "$CLAUDE_HOME_REAL" | "$CLAUDE_HOME_REAL"/*) TRUSTED=1 ;;
+    esac
+fi
+if [[ "$TRUSTED" -ne 1 ]]; then
+    [[ -n "${HUMANIZE_DEBUG:-}" ]] && echo "[humanize:debug] scorer outside trusted roots: $SCORER" >&2
     exit 0
 fi
 

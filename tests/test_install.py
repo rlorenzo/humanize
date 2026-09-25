@@ -5,8 +5,11 @@ repo its own install destination, so several copies have the same file as source
 and target. That aborted the whole install under `set -e` and installed nothing.
 """
 
+import json
+import re
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -113,7 +116,74 @@ def test_installed_scorer_actually_runs(layouts, tmp_path):
     assert '"score"' in proc.stdout
 
 
+def test_install_fails_if_hook_is_missing_the_placeholder(layouts):
+    # Regression: the Python substitution used str.replace(), which is a
+    # silent no-op when the token isn't found. That let install.sh exit 0
+    # and place a hook that never resolves an absolute scorer path, so it
+    # always takes the "not absolute" branch and does nothing, silently.
+    repo, claude_home = layouts["separate"]
+    hook_source = repo / "hooks" / "humanize-post-write.sh"
+    hook_source.write_text(
+        hook_source.read_text(encoding="utf-8").replace(
+            "@@HUMANIZE_INSTALLED_SCORER@@", "/already/baked/path"
+        ),
+        encoding="utf-8",
+    )
+    proc = _run_install(repo, claude_home)
+    assert proc.returncode != 0
+    assert "@@HUMANIZE_INSTALLED_SCORER@@" in proc.stderr
+
+
 def test_installer_lives_at_the_repo_root():
     # README tells users to run ~/.claude/skills/humanize/install.sh.
     assert INSTALLER.is_file()
     assert "install.sh" in (REPO / "README.md").read_text()
+
+
+@pytest.mark.parametrize("layout", ["separate", "in_place"])
+def test_installed_hook_executes_the_baked_scorer(layouts, layout, tmp_path):
+    # Run the INSTALLED copy (not the repo copy): its baked path plus the
+    # containment check are the only runtime path a file-based install has.
+    # HOME points at a directory with no .claude, so the empty-CLAUDE_HOME_REAL
+    # branch is exercised too and must not widen trust to "/*".
+    repo, claude_home = layouts[layout]
+    assert _run_install(repo, claude_home).returncode == 0
+    prose = tmp_path / "note.md"
+    prose.write_text(
+        "Studies show that this delves into the intricate landscape.\n", encoding="utf-8"
+    )
+    payload = json.dumps({"tool_input": {"file_path": str(prose)}})
+    proc = subprocess.run(
+        ["bash", str(claude_home / "hooks" / "humanize-post-write.sh")],
+        input=payload,
+        capture_output=True,
+        text=True,
+        env={
+            "HOME": str(tmp_path / "home-without-claude"),
+            # The scorer needs a modern python3; put this interpreter first.
+            "PATH": f"{Path(sys.executable).parent}:/usr/bin:/bin:/usr/local/bin",
+            "HUMANIZE_DEBUG": "1",
+        },
+    )
+    assert proc.returncode == 0
+    assert "[humanize:debug]" not in proc.stderr, proc.stderr
+    assert "hookSpecificOutput" in proc.stdout
+
+
+@pytest.mark.parametrize("layout", ["separate", "in_place"])
+def test_installed_hook_has_baked_path_and_no_env_override(layouts, layout):
+    # The hook must never read HUMANIZE_SCORER/CLAUDE_HOME at run time: both
+    # are settable by a cloned repo's .claude/settings.json env block, which
+    # would get arbitrary Python executed on the first Write/Edit.
+    repo, claude_home = layouts[layout]
+    assert _run_install(repo, claude_home).returncode == 0
+    installed_hook = (claude_home / "hooks" / "humanize-post-write.sh").read_text()
+    expected_scorer = (
+        claude_home.resolve() / "skills" / "humanize" / "scripts" / "humanize_score.py"
+    )
+    assert str(expected_scorer) in installed_hook
+    assert "@@HUMANIZE_INSTALLED_SCORER@@" not in installed_hook
+    # Not read as a live variable at hook runtime (a comment may still name it,
+    # and CLAUDE_HOME_REAL is an unrelated local used only for path containment).
+    assert not re.search(r"\$\{?HUMANIZE_SCORER", installed_hook)
+    assert not re.search(r"\$\{?CLAUDE_HOME(?!_REAL)", installed_hook)
