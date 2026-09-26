@@ -13,6 +13,20 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Security
+
+- **The hook no longer honors `HUMANIZE_SCORER` or `CLAUDE_HOME` at run time.**
+  Both were settable from a cloned repo's checked-in `.claude/settings.json` `env`
+  block, so opening a malicious repo could get arbitrary Python executed with the
+  developer's privileges on the first Write or Edit, with no permission prompt.
+  The plugin/repo sibling lookup is unchanged; `install.sh` now bakes the absolute
+  installed scorer path into the installed hook copy at install time, and the hook
+  refuses to execute anything that isn't an absolute path under the plugin root or
+  the real Claude home.
+- `agents/humanizer-reviewer.md` now checks the installed scorer (Claude home, then
+  a plugin copy) before a working-repo copy, since the latter is untrusted outside
+  this project's own repo.
+
 ## [3.1.0] - 2026-09-24
 
 ### Changed

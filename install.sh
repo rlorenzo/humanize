@@ -52,6 +52,23 @@ echo "[install] rule installed at $CLAUDE_HOME/rules/10-anti-slop.md"
 # 4. Hook (the user must register this in settings.json manually; we just place the script)
 mkdir -p "$CLAUDE_HOME/hooks"
 install_into "$REPO_DIR/hooks/humanize-post-write.sh" "$CLAUDE_HOME/hooks"
+# Bake the absolute scorer path into the installed copy so the hook never has
+# to read CLAUDE_HOME (or anything else) from the environment at run time.
+# Literal replacement in Python (already a prerequisite): sed would treat
+# "&" or "#" in the path as metacharacters.
+CLAUDE_HOME_ABS="$(cd "$CLAUDE_HOME" && pwd -P)"
+HUMANIZE_SCORER_ABS="$CLAUDE_HOME_ABS/skills/humanize/scripts/humanize_score.py" \
+    python3 - "$CLAUDE_HOME/hooks/humanize-post-write.sh" <<'PY'
+import os, pathlib, shlex, sys
+p = pathlib.Path(sys.argv[1])
+token = "@@HUMANIZE_INSTALLED_SCORER@@"
+text = p.read_text(encoding="utf-8")
+if token not in text:
+    sys.exit(f"[install] error: {token} not found in {p}; hook would silently do nothing")
+# shlex.quote: the path lands in a bash assignment, so "$", backticks or spaces
+# in CLAUDE_HOME must not expand or split.
+p.write_text(text.replace(token, shlex.quote(os.environ["HUMANIZE_SCORER_ABS"])), encoding="utf-8")
+PY
 chmod +x "$CLAUDE_HOME/hooks/humanize-post-write.sh"
 echo "[install] hook script at $CLAUDE_HOME/hooks/humanize-post-write.sh"
 
