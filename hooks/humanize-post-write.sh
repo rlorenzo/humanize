@@ -13,6 +13,9 @@
 # Manual test:
 #   echo '{"tool_input":{"file_path":"draft.md"}}' | ./humanize-post-write.sh
 #
+# With --json (used by the plugin's status-line mod) it prints the score of
+# every prose file it scores, not only those over the threshold.
+#
 # With --session-start it is the SessionStart hook instead: it scores nothing,
 # and prints a systemMessage for the user when no Python 3.14+ is found, since
 # the PostToolUse side has to stay silent and would otherwise just do nothing.
@@ -135,12 +138,15 @@ if ! find_python; then
     exit 0
 fi
 
+HOOK_ARGS=(--hook)
+[[ "${1:-}" == "--json" ]] && HOOK_ARGS+=(--json)
+
 # stderr is normally discarded so a scoring problem can never reach the
 # transcript. Under HUMANIZE_DEBUG it is let through instead, which is the only
 # way to tell a working hook from a silently broken one.
 if [[ -n "${HUMANIZE_DEBUG:-}" ]]; then
-    printf '%s' "$INPUT" | "${PY[@]}" "$SCORER" --hook
+    printf '%s' "$INPUT" | "${PY[@]}" "$SCORER" "${HOOK_ARGS[@]}"
 else
-    printf '%s' "$INPUT" | "${PY[@]}" "$SCORER" --hook 2>/dev/null
+    printf '%s' "$INPUT" | "${PY[@]}" "$SCORER" "${HOOK_ARGS[@]}" 2>/dev/null
 fi
 exit 0

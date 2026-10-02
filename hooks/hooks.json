@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/humanize-post-write.sh --session-start",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/humanize-post-write.sh\" --session-start",
             "timeout": 10
           }
         ]
@@ -17,11 +17,14 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/humanize-post-write.sh",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/humanize-post-write.sh\"",
             "timeout": 30
           }
         ]
       }
     ]
-  }
+  },
+  "modules": [
+    "./register.ts"
+  ]
 }

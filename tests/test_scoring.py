@@ -441,6 +441,26 @@ def test_bash_hook_end_to_end(tmp_path, filename):
     assert "additionalContext" in json.loads(proc.stdout)["hookSpecificOutput"]
 
 
+def test_hook_json_mode_reports_every_scored_file(tmp_path):
+    # The status-line mod needs a score under the threshold too, and nothing
+    # in hookSpecificOutput (that is the settings hook's job, not the mod's).
+    clean = tmp_path / "clean.md"
+    clean.write_text("We shipped the fix on Tuesday.\n", encoding="utf-8")
+    proc = subprocess.run(
+        ["bash", str(HOOK), "--json"], input=hook_payload(clean), capture_output=True, text=True
+    )
+    out = json.loads(proc.stdout)
+    assert out["path"] == str(clean) and out["score"] <= out["threshold"]
+    assert "hookSpecificOutput" not in out
+    # A file the hook skips still prints nothing.
+    code = tmp_path / "app.py"
+    code.write_text("x = 1\n")
+    proc = subprocess.run(
+        ["bash", str(HOOK), "--json"], input=hook_payload(code), capture_output=True, text=True
+    )
+    assert proc.stdout == ""
+
+
 # ---- Hook interpreter lookup: the first python3 on PATH is often too old ------
 
 

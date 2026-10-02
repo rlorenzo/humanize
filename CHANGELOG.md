@@ -13,7 +13,20 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- **A status-line badge for every prose write.** The plugin now ships a mod
+  (`hooks/register.ts`, Claude Code 2.1.287+) that shows each prose file's score,
+  verdict and top patterns under the prompt after an Edit/Write, with a toast when it is
+  over the threshold, so you can see the hook working. It is display-only; Claude still
+  learns of a high score through the PostToolUse hook. It reads the score through the
+  hook script's new `--json` mode (`humanize_score.py --hook --json`), which reports
+  every scored file, not only those over the threshold.
+
 ### Fixed
+
+- **`hooks.json` quotes `${CLAUDE_PLUGIN_ROOT}`,** so the hooks still run when the
+  plugin is installed under a path with a space in it.
 
 - **The post-write hook no longer goes silent when the first `python3` on `PATH` is
   too old.** It ran plain `python3`, which on macOS is the system 3.9, so the 3.14+
