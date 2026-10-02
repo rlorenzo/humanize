@@ -441,6 +441,86 @@ def test_bash_hook_end_to_end(tmp_path, filename):
     assert "additionalContext" in json.loads(proc.stdout)["hookSpecificOutput"]
 
 
+def test_hook_json_mode_reports_every_scored_file(tmp_path):
+    # The status-line mod needs a score under the threshold too, and nothing
+    # in hookSpecificOutput (that is the settings hook's job, not the mod's).
+    clean = tmp_path / "clean.md"
+    clean.write_text("We shipped the fix on Tuesday.\n", encoding="utf-8")
+    proc = subprocess.run(
+        ["bash", str(HOOK), "--json"], input=hook_payload(clean), capture_output=True, text=True
+    )
+    out = json.loads(proc.stdout)
+    assert out["path"] == str(clean) and out["score"] <= out["threshold"]
+    assert "hookSpecificOutput" not in out
+    # A file the hook skips still prints nothing.
+    code = tmp_path / "app.py"
+    code.write_text("x = 1\n")
+    proc = subprocess.run(
+        ["bash", str(HOOK), "--json"], input=hook_payload(code), capture_output=True, text=True
+    )
+    assert proc.stdout == ""
+
+
+# ---- Hook interpreter lookup: the first python3 on PATH is often too old ------
+
+
+def _bin_with(tmp_path: Path, pythons: dict[str, str]) -> dict[str, str]:
+    """A PATH holding only the tools the hook needs, plus the given python names.
+
+    Each value is a target to symlink, or "old" for a stub that reports 3.9 and
+    fails the version check the way the macOS system python does.
+    """
+    bindir = tmp_path / "bin"
+    bindir.mkdir()
+    for tool in ("cat", "dirname", "tr"):
+        (bindir / tool).symlink_to(shutil.which(tool))
+    for name, target in pythons.items():
+        if target == "old":
+            (bindir / name).write_text("#!/bin/sh\necho 3.9.6\nexit 1\n")
+            (bindir / name).chmod(0o755)
+        else:
+            (bindir / name).symlink_to(target)
+    return {**os.environ, "PATH": str(bindir)}
+
+
+def _run_hook(env: dict[str, str], stdin: str, *args: str):
+    bash = shutil.which("bash")
+    return subprocess.run(
+        [bash, str(HOOK), *args], input=stdin, capture_output=True, text=True, env=env
+    )
+
+
+def test_hook_skips_an_old_python3_for_a_newer_versioned_one(tmp_path):
+    f = tmp_path / "slop.md"
+    f.write_text(SLOP, encoding="utf-8")
+    env = _bin_with(tmp_path, {"python3": "old", "python3.14": sys.executable})
+    proc = _run_hook(env, hook_payload(f))
+    assert proc.returncode == 0
+    assert "additionalContext" in json.loads(proc.stdout)["hookSpecificOutput"]
+
+
+def test_hook_stays_silent_without_a_new_enough_python(tmp_path):
+    f = tmp_path / "slop.md"
+    f.write_text(SLOP, encoding="utf-8")
+    proc = _run_hook(_bin_with(tmp_path, {"python3": "old"}), hook_payload(f))
+    assert proc.returncode == 0
+    assert proc.stdout == ""
+
+
+def test_session_start_warns_the_user_when_python_is_too_old(tmp_path):
+    proc = _run_hook(_bin_with(tmp_path, {"python3": "old"}), "{}", "--session-start")
+    assert proc.returncode == 0
+    msg = json.loads(proc.stdout)["systemMessage"]
+    assert "3.14" in msg and "3.9.6 (python3)" in msg
+
+
+def test_session_start_is_silent_when_python_is_new_enough(tmp_path):
+    env = _bin_with(tmp_path, {"python3": sys.executable})
+    proc = _run_hook(env, "{}", "--session-start")
+    assert proc.returncode == 0
+    assert proc.stdout == ""
+
+
 # ---- Hook guardrails: size cap and the debug channel ---------------------------
 
 

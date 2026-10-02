@@ -194,15 +194,24 @@ burstiness-check MANUSCRIPT.md
 ```
 
 Both scorers are pure Python with **zero dependencies** and need Python 3.14+. The
-hook runs whichever `python3` is first on `PATH`; on macOS that is often the system
-3.9, so install a current Python (for example `brew install python`) or the hook
-stays silent. `HUMANIZE_DEBUG=1` shows the error.
+hook takes the first new-enough interpreter it finds: `python3`, `python`, then
+`python3.19` down to `python3.14`, then the Windows `py -3` launcher. So a system
+`python3` that is too old (macOS ships 3.9) is fine as long as a newer one is on
+`PATH`. If none is, a message at session start says so and the hook stays off until
+you install one (for example `brew install python`) and restart Claude Code.
 
 ### Hooked into commit time
 
 The hook auto-fires after any `.md` / `.tex` Edit/Write and warns when the score exceeds 60. Tune with `HUMANIZE_THRESHOLD=70` in your shell.
 
-It stays silent otherwise, including when it fails — a scoring bug must never block a write. That silence hid a real bug once, so set `HUMANIZE_DEBUG=1` to see on stderr what it decided and why:
+With the plugin installed on Claude Code 2.1.287 or later, a small mod
+(`hooks/register.ts`) also shows you the result: after each prose Edit/Write the status
+line under the prompt reads, for example,
+`humanize draft.md: 72.4/100 heavy_slop · not_x_but_y, ai_vocabulary`, and a file over
+the threshold raises a toast as well. It only displays; what Claude reads still comes
+from the hook. A file-based install (`install.sh`) has no mod.
+
+The hook stays silent to Claude otherwise, including when it fails — a scoring bug must never block a write. That silence hid a real bug once, so set `HUMANIZE_DEBUG=1` to see on stderr what it decided and why:
 
 ```bash
 $ HUMANIZE_DEBUG=1 echo '{"tool_input":{"file_path":"draft.md"}}' | ~/.claude/hooks/humanize-post-write.sh

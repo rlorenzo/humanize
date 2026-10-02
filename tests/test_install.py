@@ -103,7 +103,7 @@ def test_installed_scorer_actually_runs(layouts, tmp_path):
     draft.write_text("Studies show that this delves into the intricate landscape.\n")
     proc = subprocess.run(
         [
-            "python3",
+            sys.executable,
             str(claude_home / "skills/humanize/scripts/humanize_score.py"),
             "--json",
             str(draft),

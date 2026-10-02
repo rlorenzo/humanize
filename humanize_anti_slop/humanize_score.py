@@ -739,7 +739,7 @@ def hook_skip_reason(path: Path, file_path: str) -> str | None:
     return None
 
 
-def run_hook() -> int:
+def run_hook(as_json: bool = False) -> int:
     """Read a Claude Code PostToolUse JSON payload from stdin, score the written
     file if it is prose, and emit hookSpecificOutput.additionalContext JSON when
     the score exceeds HUMANIZE_THRESHOLD (default 60).
@@ -748,6 +748,9 @@ def run_hook() -> int:
     deliberate but it hid a real bug once -- the hook emitted a format Claude
     never read and went unnoticed for months -- so set HUMANIZE_DEBUG=1 to see
     on stderr what it decided and why.
+
+    With as_json (the plugin's status-line mod) every scored file prints its
+    result, under the threshold too, and nothing goes to Claude.
     """
     try:
         file_path = json.load(sys.stdin).get("tool_input", {}).get("file_path", "")
@@ -762,6 +765,9 @@ def run_hook() -> int:
             threshold = 60.0
         text = path.read_text(encoding="utf-8", errors="replace")
         result = score_text(text, profile=detect_profile(path))
+        if as_json:
+            print(json.dumps({**result, "path": file_path, "threshold": threshold}))
+            return 0
         if result["score"] <= threshold:
             debug(f"{file_path} scored {result['score']} at or under threshold {threshold:g}")
             return 0
@@ -810,7 +816,9 @@ def main(argv: list[str] | None = None) -> int:
         default="auto",
         help="Domain profile (default: auto-detect from filename).",
     )
-    parser.add_argument("--json", action="store_true", help="Emit raw JSON.")
+    parser.add_argument(
+        "--json", action="store_true", help="Emit raw JSON (with --hook: every scored file)."
+    )
     parser.add_argument(
         "--threshold",
         type=float,
@@ -825,7 +833,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     if args.hook:
-        return run_hook()
+        return run_hook(as_json=args.json)
     if not args.path:
         parser.error("path is required unless --hook is given")
 

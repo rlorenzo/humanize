@@ -83,7 +83,8 @@ python3 "$CLAUDE_HOME/skills/humanize/scripts/burstiness_check.py" "$SMOKE" || t
 
 echo ""
 echo "[install] done. Next steps:"
-echo "  1. Wire the hook into ~/.claude/settings.json: copy the PostToolUse entry"
-echo "     from hooks/hooks.json, replacing \${CLAUDE_PLUGIN_ROOT} with ~/.claude."
+echo "  1. Wire the hook into ~/.claude/settings.json: copy the SessionStart and"
+echo "     PostToolUse entries from hooks/hooks.json, replacing \${CLAUDE_PLUGIN_ROOT}"
+echo "     with ~/.claude."
 echo "     Skip this step if you installed via the plugin."
 echo "  2. Try: /humanize [paste some AI text]"

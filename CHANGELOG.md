@@ -13,6 +13,33 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [3.2.0] - 2026-10-01
+
+### Added
+
+- **A status-line badge for every prose write.** The plugin now ships a mod
+  (`hooks/register.ts`, Claude Code 2.1.287+) that shows each prose file's score,
+  verdict and top patterns under the prompt after an Edit/Write, with a toast when it is
+  over the threshold, so you can see the hook working. It is display-only; Claude still
+  learns of a high score through the PostToolUse hook. It reads the score through the
+  hook script's new `--json` mode (`humanize_score.py --hook --json`), which reports
+  every scored file, not only those over the threshold.
+
+### Fixed
+
+- **`hooks.json` quotes `${CLAUDE_PLUGIN_ROOT}`,** so the hooks still run when the
+  plugin is installed under a path with a space in it.
+
+- **The post-write hook no longer goes silent when the first `python3` on `PATH` is
+  too old.** It ran plain `python3`, which on macOS is the system 3.9, so the 3.14+
+  scorer crashed on import and the hook, which discards stderr, did nothing at all.
+  It now takes the first interpreter that is 3.14 or newer: `python3`, `python`,
+  `python3.19` down to `python3.14`, then the Windows `py -3` launcher.
+- **You are told when no usable Python is found.** A new `SessionStart` hook (the same
+  script with `--session-start`) shows a one-line message naming the newest Python it
+  did find and how to install a current one. A file-based install needs this entry
+  copied into `settings.json` too.
+
 ### Changed
 
 - **Re-synced with blader/humanizer v3.1.0; the catalogue is now 35 patterns.**
@@ -499,7 +526,8 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `humanizer-reviewer` subagent, the PostToolUse hook, and `install.sh`.
 - `DETECTION_ROBUSTNESS.md`, recording what the score does and does not promise.
 
-[Unreleased]: https://github.com/rlorenzo/humanize/compare/v3.1.0...HEAD
+[Unreleased]: https://github.com/rlorenzo/humanize/compare/v3.2.0...HEAD
+[3.2.0]: https://github.com/rlorenzo/humanize/compare/v3.1.0...v3.2.0
 [3.1.0]: https://github.com/rlorenzo/humanize/compare/v3.0.0...v3.1.0
 [3.0.0]: https://github.com/rlorenzo/humanize/compare/v2.1.0...v3.0.0
 [2.1.0]: https://github.com/rlorenzo/humanize/compare/v2.0.1...v2.1.0
