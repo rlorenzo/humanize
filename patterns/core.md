@@ -132,7 +132,7 @@ Shapes and punctuation applied everywhere, whether or not the meaning asks for t
 ### 10. Hyphenated pairs everywhere
 
 **Watch for:** high-quality, well-known, well-documented, long-term, real-time, client-facing after the noun they describe
-**Problem:** Compound modifiers keep their hyphen in every position. Keep the hyphen before a noun, as in `a high-quality report`, and drop it after the noun, as in `the report is high quality`. Words the dictionary always spells with a hyphen, such as third-party and cross-functional, keep it everywhere. *Weak alone.*
+**Problem:** These compound modifiers get a hyphen in every position, but the hyphen depends on where they sit. Keep the hyphen before a noun, as in `a high-quality report`, and drop it after the noun, as in `the report is high quality`. Words the dictionary always spells with a hyphen, such as third-party and cross-functional, keep it everywhere. *Weak alone.*
 **Before:**
 > The report is high-quality, the process is well-documented, and the plan is long-term.
 **After:**

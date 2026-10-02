@@ -92,8 +92,9 @@ PATTERNS: list[Pattern] = [
         _re(
             r"[.!?]\s+(No|Not|Just|Gone)\b[^.!?\n]{0,28}[.!?]\s+(No|Not|Just|Gone)\b|"
             r"\b(let that sink in|read that again|that(?: is|['‘’]s) the real win|"
-            r"that distinction matters|the message was clear:?|"
-            r"this shows the importance of|it was a lesson in \w+)\b"
+            r"that distinction matters|"
+            r"this shows the importance of|it was a lesson in \w+)\b|"
+            r"\bthe message was clear:"
         ),
         weight=1.0,
     ),
@@ -342,7 +343,8 @@ PATTERNS: list[Pattern] = [
     # 24 A heading repeated in the first sentence: counted by a function, see HEURISTICS
     # 25 Writing about the document instead of its subject (renamed in upstream v3.1.0
     # from "writing about the previous version", widened to method narration: "generated
-    # from", "compiled from"). The legend/layout watch item ("the table below compares")
+    # from", "compiled from"). Only a data noun as subject counts, so build steps such as
+    # "compiled from source" stay clean. The legend/layout watch item ("the table below compares")
     # is left out: it is too close to ordinary signposting in docs to match reliably.
     Pattern(
         25,
@@ -351,7 +353,8 @@ PATTERNS: list[Pattern] = [
             r"\b(replac(es?|ed|ing) the (previous|old|earlier)|"
             r"the (previous|earlier) (approach|version|implementation|method)|"
             r"was (added|introduced|created) to replace|"
-            r"(generated|compiled) from)\b"
+            r"(figures|numbers|data|list|table|results|prices|summary)( below| above)? "
+            r"(are|were|is|was) (generated|compiled|drawn) from)\b"
         ),
         weight=1.0,
         profile_carveouts={"commit": 0.0},

@@ -23,7 +23,9 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   seeing the surrounding conversation, which a file-based scorer never has.
   Upstream also renamed pattern 25 from "writing about the previous version" to
   "writing about the document instead of its subject" and widened it to method
-  narration ("generated from", "compiled from"); the scorer's `breakdown` key
+  narration ("the figures are generated from", "compiled from"; the scorer flags it only
+  when a data noun is the subject, so build steps such as "compiled from source" stay
+  clean); the scorer's `breakdown` key
   renames with it: `previous_version_writing` -> `document_self_reference`.
   Upstream also tightened pattern 10's watch list to the compound modifiers whose
   hyphen is position-dependent (dropping `cross-functional`, `data-driven`,

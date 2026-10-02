@@ -153,7 +153,7 @@ def test_fragmented_header_fires_at_end_of_file():
     assert hs.count_fragmented_headers("## Overview\n\nOverview of the system.\n") == 1
 
 
-# ---- #31 polysyndetic tripleting ----------------------------------------------
+# ---- #32 polysyndetic tripleting ----------------------------------------------
 
 
 def test_tripleting_fires_on_three_triplets():
@@ -233,7 +233,7 @@ def test_fragmented_header_residual_false_positives():
     behaviour -- which fired on every hard-wrapped paragraph in the repository,
     11 times in README.md alone -- but they are not clean. Tightening further
     means guessing at more markdown heuristics without a corpus to check
-    against, which is the pseudo-precision this project flags as pattern #33.
+    against, which is the pseudo-precision this project flags as pattern #34.
     """
     assert hs.count_fragmented_headers("## License\n\nMIT — see [LICENSE](LICENSE).\n") == 1
     assert hs.count_fragmented_headers("## Commit verbs\n\n**Problem:** Vague commit verbs.\n") == 1

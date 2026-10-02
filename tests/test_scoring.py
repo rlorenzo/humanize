@@ -252,6 +252,7 @@ def test_boasts_is_no_longer_sales_language():
     [
         "These figures are generated from each vendor's published pricing.",
         "The list is compiled from last quarter's survey responses.",
+        "The figures below are drawn from each vendor's published pricing.",
     ],
 )
 def test_document_self_reference_catches_method_narration(text):
@@ -264,6 +265,25 @@ def test_document_self_reference_does_not_flag_an_ordinary_legend():
     # signposting in docs to match reliably, so it is deliberately not regexed.
     text = "The table below compares pricing across vendors."
     assert "document_self_reference" not in hs.score_text(text)["breakdown"]
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Wheels are compiled from source on install.",
+        "The binary is compiled from C.",
+        "This file is generated from schema.yaml; do not edit.",
+    ],
+)
+def test_document_self_reference_does_not_flag_build_steps(text):
+    # Method narration describes how the text was put together; a build step
+    # describes the subject, so only a data noun as subject counts.
+    assert "document_self_reference" not in hs.score_text(text)["breakdown"]
+
+
+def test_message_was_clear_needs_the_colon():
+    text = "The message was clear to everyone in the room."
+    assert "one_line_closers" not in hs.score_text(text)["breakdown"]
 
 
 def test_deep_sayings_requires_copula():
