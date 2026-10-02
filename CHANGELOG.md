@@ -13,6 +13,18 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- **The post-write hook no longer goes silent when the first `python3` on `PATH` is
+  too old.** It ran plain `python3`, which on macOS is the system 3.9, so the 3.14+
+  scorer crashed on import and the hook, which discards stderr, did nothing at all.
+  It now takes the first interpreter that is 3.14 or newer: `python3`, `python`,
+  `python3.19` down to `python3.14`, then the Windows `py -3` launcher.
+- **You are told when no usable Python is found.** A new `SessionStart` hook (the same
+  script with `--session-start`) shows a one-line message naming the newest Python it
+  did find and how to install a current one. A file-based install needs this entry
+  copied into `settings.json` too.
+
 ### Changed
 
 - **Re-synced with blader/humanizer v3.1.0; the catalogue is now 35 patterns.**

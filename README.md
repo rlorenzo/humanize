@@ -194,9 +194,11 @@ burstiness-check MANUSCRIPT.md
 ```
 
 Both scorers are pure Python with **zero dependencies** and need Python 3.14+. The
-hook runs whichever `python3` is first on `PATH`; on macOS that is often the system
-3.9, so install a current Python (for example `brew install python`) or the hook
-stays silent. `HUMANIZE_DEBUG=1` shows the error.
+hook takes the first new-enough interpreter it finds: `python3`, `python`, then
+`python3.19` down to `python3.14`, then the Windows `py -3` launcher. So a system
+`python3` that is too old (macOS ships 3.9) is fine as long as a newer one is on
+`PATH`. If none is, a message at session start says so and the hook stays off until
+you install one (for example `brew install python`) and restart Claude Code.
 
 ### Hooked into commit time
 

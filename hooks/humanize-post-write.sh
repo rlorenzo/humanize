@@ -7,15 +7,55 @@
 # threshold (HUMANIZE_THRESHOLD, default 60) so Claude sees the warning.
 #
 # Installed as a plugin, hooks/hooks.json registers this automatically. For a
-# manual install, copy the PostToolUse entry from hooks/hooks.json into
+# manual install, copy the SessionStart and PostToolUse entries from hooks/hooks.json into
 # ~/.claude/settings.json, replacing ${CLAUDE_PLUGIN_ROOT} with the install dir.
 #
 # Manual test:
 #   echo '{"tool_input":{"file_path":"draft.md"}}' | ./humanize-post-write.sh
+#
+# With --session-start it is the SessionStart hook instead: it scores nothing,
+# and prints a systemMessage for the user when no Python 3.14+ is found, since
+# the PostToolUse side has to stay silent and would otherwise just do nothing.
 
 set -u
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# The scorer needs Python 3.14+, and the first python3 on PATH is often older
+# (macOS ships 3.9; on Windows it may be the Microsoft Store stub, which exits
+# non-zero). Take the first candidate that is new enough: the user's own
+# python3/python, then versioned names, then the Windows py launcher.
+# Sets PY (an array, so "py -3" stays two words) and PY_FOUND (the best
+# version seen, for the warning).
+PY=()
+PY_FOUND=""
+find_python() {
+    local cand ver
+    for cand in python3 python python3.19 python3.18 python3.17 python3.16 python3.15 python3.14 "py -3"; do
+        # shellcheck disable=SC2086  # intentional split: "py -3" is command + arg
+        command -v ${cand%% *} >/dev/null 2>&1 || continue
+        # shellcheck disable=SC2086
+        ver=$($cand -c 'import sys; print("%d.%d.%d" % sys.version_info[:3]); sys.exit(sys.version_info < (3, 14))' 2>/dev/null)
+        # shellcheck disable=SC2181  # the $(...) above is the command whose status we want
+        if [[ $? -eq 0 ]]; then
+            # shellcheck disable=SC2206
+            PY=($cand)
+            return 0
+        fi
+        [[ -n "$ver" && -z "$PY_FOUND" ]] && PY_FOUND="$ver (${cand%% *})"
+    done
+    return 1
+}
+
+if [[ "${1:-}" == "--session-start" ]]; then
+    cat >/dev/null
+    if ! find_python; then
+        found="no Python found"
+        [[ -n "$PY_FOUND" ]] && found="found only Python $PY_FOUND"
+        printf '{"systemMessage": "humanize: prose scoring after Edit/Write is off. It needs Python 3.14 or newer on PATH (%s). Install one (macOS: brew install python; Windows: winget install Python.Python.3.14; Linux: your package manager or uv python install 3.14), then restart Claude Code."}\n' "$found"
+    fi
+    exit 0
+fi
 
 # Baked in by install.sh (Python literal replacement) for file-based installs. Left as a literal
 # placeholder in the repo/plugin copy, where the sibling lookup below already
@@ -89,12 +129,18 @@ case "$(printf '%s' "$INPUT" | tr '[:upper:]' '[:lower:]')" in
         ;;
 esac
 
+# No usable Python: stay silent here; the SessionStart side already told the user.
+if ! find_python; then
+    [[ -n "${HUMANIZE_DEBUG:-}" ]] && echo "[humanize:debug] no Python 3.14+ found (best: ${PY_FOUND:-none})" >&2
+    exit 0
+fi
+
 # stderr is normally discarded so a scoring problem can never reach the
 # transcript. Under HUMANIZE_DEBUG it is let through instead, which is the only
 # way to tell a working hook from a silently broken one.
 if [[ -n "${HUMANIZE_DEBUG:-}" ]]; then
-    printf '%s' "$INPUT" | python3 "$SCORER" --hook
+    printf '%s' "$INPUT" | "${PY[@]}" "$SCORER" --hook
 else
-    printf '%s' "$INPUT" | python3 "$SCORER" --hook 2>/dev/null
+    printf '%s' "$INPUT" | "${PY[@]}" "$SCORER" --hook 2>/dev/null
 fi
 exit 0
