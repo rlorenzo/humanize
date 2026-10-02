@@ -243,8 +243,10 @@ PATTERNS: list[Pattern] = [
         ),
         weight=1.2,
     ),
-    # 16 Sales language. "boasts" moved to #18 ("avoiding is, are, and has") and
-    # "vibrant" to #12 (AI vocabulary) in upstream v3.1.0, so each is counted once.
+    # 16 Sales language. Upstream v3.1.0 dropped "boasts" from this list: it
+    # duplicated #18's text watch list ("avoiding is, are, and has"), which this
+    # scorer does not implement, so "boasts" now scores nothing at all. "vibrant"
+    # moved from here to #12 (AI vocabulary), so it is still counted once.
     Pattern(
         16,
         "sales_language",
