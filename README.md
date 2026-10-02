@@ -1,6 +1,6 @@
 # humanize
 
-> Anti-slop framework for Claude Code. Skill + scorer + agent + hook + always-on rule. Strips 34 AI-writing patterns. Domain-aware (academic / docs / blog / commit). Extends [blader/humanizer](https://github.com/blader/humanizer) (synced at v3.0.0).
+> Anti-slop framework for Claude Code. Skill + scorer + agent + hook + always-on rule. Strips 35 AI-writing patterns. Domain-aware (academic / docs / blog / commit). Extends [blader/humanizer](https://github.com/blader/humanizer) (synced at v3.1.0).
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Compatible: Claude Code](https://img.shields.io/badge/Compatible-Claude%20Code-blue)](https://claude.ai/claude-code)
@@ -21,23 +21,23 @@
 
 Plus four **domain profiles** (academic, docs, blog, commit) with their own carve-outs. Em-dashes are fine in scientific prose. Passive voice is correct in IMRaD methods. Vague attributions are flagged hard in academic but allowed (with citation) in docs. The framework adapts.
 
-## What it detects (34 patterns)
+## What it detects (35 patterns)
 
-Inherits 25 from [blader/humanizer](https://github.com/blader/humanizer) v3.0.0, ordered strongest first in five groups: staging instead of stating (not-X-but-Y contrasts, one-line closers, staged openers), rhythm by rule (forced triads, dashes), inflation and borrowed authority, formatting by rule, and leftovers from the chat. Summaries in [SKILL.md](SKILL.md), full text with before/after in [patterns/core.md](patterns/core.md). Upstream's no-fabrication rule and "when not to act" guardrails are adopted too.
+Inherits 26 from [blader/humanizer](https://github.com/blader/humanizer) v3.1.0, ordered strongest first in six groups: staging instead of stating (not-X-but-Y contrasts, one-line closers, staged openers), rhythm by rule (forced triads, dashes), inflation and borrowed authority, formatting by rule, leftovers from the chat, and writing for the wrong reader (a reply that re-explains context the other person already has). Summaries in [SKILL.md](SKILL.md), full text with before/after in [patterns/core.md](patterns/core.md). Upstream's no-fabrication rule and "when not to act" guardrails are adopted too.
 
-New extensions (#26-34):
+New extensions (#27-35):
 
 | # | Pattern | Why it matters |
 |---|---|---|
-| 26 | Citation laundering ("studies show" with no citation) | Academic-killer |
-| 27 | Manuscript boilerplate ("To the best of our knowledge…") | Generic paper opener |
-| 28 | Tutorial-script scaffolding ("Let's walk through…") | Doc tutorial-script feel |
-| 29 | Stat parade without effect size | Frequentist hedging |
-| 30 | Temporal hedge ladders | Stacked time-disclaimers |
-| 31 | Polysyndetic tripleting | Stronger rule-of-three |
-| 32 | AI-flavoured commit verbs ("improves", "enhances") | Commit-specific |
-| 33 | Methodology pseudo-precision ("careful", "rigorous", "comprehensive") | Self-praise without specifics |
-| 34 | Dissertation-grade hedging where stance is required | Academic-only |
+| 27 | Citation laundering ("studies show" with no citation) | Academic-killer |
+| 28 | Manuscript boilerplate ("To the best of our knowledge…") | Generic paper opener |
+| 29 | Tutorial-script scaffolding ("Let's walk through…") | Doc tutorial-script feel |
+| 30 | Stat parade without effect size | Frequentist hedging |
+| 31 | Temporal hedge ladders | Stacked time-disclaimers |
+| 32 | Polysyndetic tripleting | Stronger rule-of-three |
+| 33 | AI-flavoured commit verbs ("improves", "enhances") | Commit-specific |
+| 34 | Methodology pseudo-precision ("careful", "rigorous", "comprehensive") | Self-praise without specifics |
+| 35 | Dissertation-grade hedging where stance is required | Academic-only |
 
 ## Install (Claude Code plugin — recommended)
 
@@ -98,7 +98,7 @@ git clone --depth 1 https://github.com/rlorenzo/humanize.git /tmp/humanize &&
 $ python ~/.claude/skills/humanize/scripts/humanize_score.py STAGE3/MANUSCRIPT.md
 humanize_score: 38.4/100  (minor_residue)
 profile:        academic  (3,420 words)
-scope:          34 known patterns, not detector evasion — see DETECTION_ROBUSTNESS.md
+scope:          34 scorable patterns, not detector evasion — see DETECTION_ROBUSTNESS.md
 top offenders:
   - methodology_pseudo                weighted=12.50
   - inflated_significance             weighted=7.50
@@ -114,7 +114,9 @@ python humanize_score.py --json --profile=docs README.md
 
 ### What the score does not mean
 
-The number is a weighted rate of the 34 patterns in this catalogue, per 100 words.
+The number is a weighted rate of the 34 scorable patterns in this catalogue (35
+total; #26, re-explaining what the reader already knows, needs conversation context
+no file-based scorer has), per 100 words.
 A long clean draft and a short one score the same. That is a claim about writing
 quality, and nothing more.
 
@@ -271,9 +273,9 @@ MIT — see [LICENSE](LICENSE).
 ## Credits
 
 Original author: Kimal Honour Djam ([@kimhons](https://github.com/kimhons)) — the
-six-layer design, and patterns 26-34.
+six-layer design, and patterns 27-35.
 
-Patterns 1-25 come from [blader/humanizer](https://github.com/blader/humanizer),
+Patterns 1-26 come from [blader/humanizer](https://github.com/blader/humanizer),
 which draws them from Wikipedia's "Signs of AI writing".
 
 Maintained as a fork by Rex Lorenzo ([@rlorenzo](https://github.com/rlorenzo)).

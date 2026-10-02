@@ -13,6 +13,29 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- **Re-synced with blader/humanizer v3.1.0; the catalogue is now 35 patterns.**
+  Upstream added pattern 26, "re-explaining what the reader knows" (a new group,
+  "F. Writing for the wrong reader"), so the fork's nine extensions move from 26-34
+  to 27-35; every cross-reference in `SKILL.md` and the domain carve-out table moves
+  with them. Pattern 26 is not implemented in `humanize_score.py`: it depends on
+  seeing the surrounding conversation, which a file-based scorer never has.
+  Upstream also renamed pattern 25 from "writing about the previous version" to
+  "writing about the document instead of its subject" and widened it to method
+  narration ("the figures are generated from", "compiled from"; the scorer flags it only
+  when a data noun is the subject, so build steps such as "compiled from source" stay
+  clean); the scorer's `breakdown` key
+  renames with it: `previous_version_writing` -> `document_self_reference`.
+  Upstream also tightened pattern 10's watch list to the compound modifiers whose
+  hyphen is position-dependent (dropping `cross-functional`, `data-driven`,
+  `decision-making`, `end-to-end`, which keep their hyphen everywhere and are no
+  longer flagged) and cleaned up three phrases that sat in two watch lists at once:
+  `vibrant` moves from `sales_language` to `ai_vocabulary`, `fostering` moves from
+  `ai_vocabulary` to `shallow_ing`, and `boasts` is dropped from `sales_language`
+  (it was already unscored, since it sits in #18's watch list, which this scorer
+  does not implement).
+
 ### Security
 
 - **The hook no longer honors `HUMANIZE_SCORER` or `CLAUDE_HOME` at run time.**

@@ -8,13 +8,14 @@ Lower score = more human. Threshold convention:
    40-60  obvious patterns, needs editing
    60-100 heavy slop, rewrite
 
-WHAT THE SCORE DOES NOT MEAN: it is a weighted rate of the 34 patterns in this
-catalogue, per 100 words, not a raw count of hits. That is a claim about writing
-quality, not a prediction about any AI detector. Pangram, which trains on Claude's
-actual phrase distributions, detects at roughly 18% where detectors built on
-perplexity and burstiness sit near 0.24%. Clearing this catalogue does not move that
-number, and a score of 0 guarantees nothing except that these 34 patterns are
-absent. See DETECTION_ROBUSTNESS.md.
+WHAT THE SCORE DOES NOT MEAN: it is a weighted rate of the 34 scorable patterns in
+this catalogue (35 total; #26 needs conversation context no file-based scorer has),
+per 100 words, not a raw count of hits. That is a claim about writing quality, not a
+prediction about any AI detector. Pangram, which trains on Claude's actual phrase
+distributions, detects at roughly 18% where detectors built on perplexity and
+burstiness sit near 0.24%. Clearing this catalogue does not move that number, and a
+score of 0 guarantees nothing except that these 34 patterns are absent. See
+DETECTION_ROBUSTNESS.md.
 
 Pure Python, zero dependencies. Requires Python 3.14+.
 
@@ -39,12 +40,12 @@ import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
-# ---- Pattern definitions (34 patterns) ----------------------------------------
+# ---- Pattern definitions (34 scorable patterns) --------------------------------
 
-# Numbered as in blader/humanizer v3.0.0 (1-25, strongest first) plus this fork's
-# extensions (26-34). Most are regexes, listed here; #7, #24, #31 and the title-case
-# half of #20 are counted by functions, listed in HEURISTICS. #19 and #20 each have
-# two parts with their own names and weights.
+# Numbered as in blader/humanizer v3.1.0 (1-25, strongest first; #26 is omitted, see
+# below) plus this fork's extensions (27-35). Most are regexes, listed here; #7, #24,
+# #32 and the title-case half of #20 are counted by functions, listed in HEURISTICS.
+# #19 and #20 each have two parts with their own names and weights.
 # profile_carveouts maps profile -> multiplier (1.0 default; 0.0 disables; 0.5 reduces).
 
 
@@ -83,13 +84,17 @@ PATTERNS: list[Pattern] = [
         ),
         weight=1.2,
     ),
-    # 2 One-line closers and dramatic fragments
+    # 2 One-line closers and dramatic fragments. Also covers a closer that names what
+    # an example just showed instead of adding to it ("The message was clear:").
     Pattern(
         2,
         "one_line_closers",
         _re(
             r"[.!?]\s+(No|Not|Just|Gone)\b[^.!?\n]{0,28}[.!?]\s+(No|Not|Just|Gone)\b|"
-            r"\b(let that sink in|read that again|that(?: is|['‘’]s) the real win)\b"
+            r"\b(let that sink in|read that again|that(?: is|['‘’]s) the real win|"
+            r"that distinction matters|"
+            r"this shows the importance of|it was a lesson in \w+)\b|"
+            r"\bthe message was clear:"
         ),
         weight=1.0,
     ),
@@ -134,7 +139,7 @@ PATTERNS: list[Pattern] = [
         weight=1.0,
     ),
     # ---- B. Rhythm by rule (6-11) ----
-    # 6 Forced triads (any "A, B, and C" — coarse; #31 catches paragraphs of them)
+    # 6 Forced triads (any "A, B, and C" — coarse; #32 catches paragraphs of them)
     Pattern(6, "forced_triads", _re(r"\b\w+,\s*\w+,?\s*and\s+\w+\b"), weight=0.5),
     # 7 Repeated sentence openings: counted by a function, see HEURISTICS
     # 8 Dashes: em dashes, and en dashes or double hyphens used as dashes. Unspaced
@@ -150,17 +155,19 @@ PATTERNS: list[Pattern] = [
         ),
         weight=1.5,
     ),
-    # 10 Hyphenated pairs. The hyphen is correct before a noun ("a high-quality
-    # report"), so only the predicate position counts: the pair followed by
-    # punctuation or the end of a line ("the report is high-quality."). A comma
+    # 10 Hyphenated pairs. These are the compound modifiers whose hyphen is
+    # position-dependent: correct before a noun ("a high-quality report"), dropped
+    # after it ("the report is high quality"), so only the predicate position
+    # counts here: the pair followed by punctuation or the end of a line. A comma
     # before another hyphenated pair is a stacked modifier ("a high-quality,
-    # data-driven report"), so it does not count.
+    # well-documented report"), so it does not count. Dictionary-fixed compounds
+    # such as third-party and cross-functional keep their hyphen everywhere and are
+    # not watched: flagging them in predicate position would be a false positive.
     Pattern(
         10,
         "hyphenated_pairs",
         _re(
-            r"\b(cross-functional|data-driven|client-facing|decision-making|"
-            r"end-to-end|real-time|long-term|high-quality|well-known)\b"
+            r"\b(client-facing|real-time|long-term|high-quality|well-known|well-documented)\b"
             r"(?=[.;:!?)]|,(?!\s*\w+-\w)|[ \t]*$)",
             re.IGNORECASE | re.MULTILINE,
         ),
@@ -178,15 +185,17 @@ PATTERNS: list[Pattern] = [
     # ---- C. Inflation and borrowed authority (12-18) ----
     # 12 AI vocabulary. Figurative "gate", "robust" and "key" are omitted: a regex
     # cannot tell them from technical usage (feature gates, robust estimators).
-    # "vibrant" belongs to #16, "emphasizing" and "showcasing" to #15, and
-    # "meticulous review" to #33, so each is counted once.
+    # "emphasizing", "fostering" and "showcasing" belong to #15 (the -ing rider
+    # list) and "meticulous review" to #34, so each phrase is counted once. Upstream
+    # v3.1.0 dropped "emphasizing" and "fostering" from this list for the same
+    # reason; "vibrant" moved the other way, from #16 into this one.
     Pattern(
         12,
         "ai_vocabulary",
         _re(
             r"\b(delve|delves|delving|tapestry|landscape|testament|underscore[sd]?|"
             r"intricate|intricacies|interplay|garner[sed]*|pivotal|aligns? with|"
-            r"foster(s|ed|ing)?|enduring|enhanc(e|ed|ing|es|ement)|valuable|"
+            r"enduring|enhanc(e|ed|ing|es|ement)|valuable|vibrant|"
             r"crucial|quietly|additionally|bolstered|deep dive|showcases?|showcased|"
             r"meticulously)\b"
         ),
@@ -231,16 +240,19 @@ PATTERNS: list[Pattern] = [
         "shallow_ing",
         _re(
             r"\b(highlighting|underscoring|emphasizing|ensuring|symbolizing|reflecting|"
-            r"contributing to|cultivating|encompassing|showcasing)\s+\b"
+            r"contributing to|cultivating|fostering|encompassing|showcasing)\s+\b"
         ),
         weight=1.2,
     ),
-    # 16 Sales language
+    # 16 Sales language. Upstream v3.1.0 dropped "boasts" from this list: it
+    # duplicated #18's text watch list ("avoiding is, are, and has"), which this
+    # scorer does not implement, so "boasts" now scores nothing at all. "vibrant"
+    # moved from here to #12 (AI vocabulary), so it is still counted once.
     Pattern(
         16,
         "sales_language",
         _re(
-            r"\b(nestled|breathtaking|stunning|vibrant|boasts?|in the heart of|"
+            r"\b(nestled|breathtaking|stunning|in the heart of|"
             r"renowned for|must[- ]visit|profound|groundbreaking|exemplifies|"
             r"a commitment to|diverse array|natural beauty|rich cultural)\b"
         ),
@@ -329,22 +341,31 @@ PATTERNS: list[Pattern] = [
         weight=2.0,
     ),
     # 24 A heading repeated in the first sentence: counted by a function, see HEURISTICS
-    # 25 Writing about the previous version (docs describing the old implementation)
+    # 25 Writing about the document instead of its subject (renamed in upstream v3.1.0
+    # from "writing about the previous version", widened to method narration: "generated
+    # from", "compiled from"). Only a data noun as subject counts, so build steps such as
+    # "compiled from source" stay clean. The legend/layout watch item ("the table below compares")
+    # is left out: it is too close to ordinary signposting in docs to match reliably.
     Pattern(
         25,
-        "previous_version_writing",
+        "document_self_reference",
         _re(
             r"\b(replac(es?|ed|ing) the (previous|old|earlier)|"
             r"the (previous|earlier) (approach|version|implementation|method)|"
-            r"was (added|introduced|created) to replace)\b"
+            r"was (added|introduced|created) to replace|"
+            r"(figures|numbers|data|list|table|results|prices|summary)( below| above)? "
+            r"(are|were|is|was) (generated|compiled|drawn) from)\b"
         ),
         weight=1.0,
         profile_carveouts={"commit": 0.0},
     ),
-    # ---- Patterns 26-34 (this fork's extensions) ----
-    # 26 Citation laundering
+    # Pattern 26 (upstream, "re-explaining what the reader knows") is not implemented:
+    # it depends on seeing the surrounding conversation, which a file-based scorer
+    # never has, not on watchable phrases.
+    # ---- Patterns 27-35 (this fork's extensions) ----
+    # 27 Citation laundering
     Pattern(
-        26,
+        27,
         "citation_laundering",
         _re(
             r"\b(studies (have )?(show|shows|shown|suggest|reported|indicate)|"
@@ -356,9 +377,9 @@ PATTERNS: list[Pattern] = [
         weight=2.0,
         profile_carveouts={"academic": 2.5, "commit": 0.0},
     ),
-    # 27 Manuscript boilerplate
+    # 28 Manuscript boilerplate
     Pattern(
-        27,
+        28,
         "manuscript_boilerplate",
         _re(
             r"\b(to the best of our knowledge|fills a critical gap|of paramount importance|"
@@ -367,9 +388,9 @@ PATTERNS: list[Pattern] = [
         weight=2.5,
         profile_carveouts={"academic": 3.0, "blog": 1.5, "docs": 1.0, "commit": 0.0},
     ),
-    # 28 Tutorial-script scaffolding
+    # 29 Tutorial-script scaffolding
     Pattern(
-        28,
+        29,
         "tutorial_scaffolding",
         _re(
             r"\b(let['‘’]s walk through|let['‘’]s start with|here['‘’]s the high-level|"
@@ -377,25 +398,25 @@ PATTERNS: list[Pattern] = [
         ),
         weight=1.2,
     ),
-    # 29 Stat parade without effect size
+    # 30 Stat parade without effect size
     Pattern(
-        29,
+        30,
         "stat_parade",
         _re(r"\bp\s*[<>=]\s*0?\.\d+(?![^.]{0,80}(95\s*%|CI|Cohen|effect size|d\s*=))"),
         weight=1.5,
         profile_carveouts={"academic": 2.0, "blog": 0.5},
     ),
-    # 30 Temporal hedge ladders
+    # 31 Temporal hedge ladders
     Pattern(
-        30,
+        31,
         "temporal_hedges",
         _re(r"\b(currently|at present|at the time of writing|as of (now|today))\b"),
         weight=0.6,
     ),
-    # 31 Polysyndetic tripleting: counted by a function, see HEURISTICS
-    # 32 AI-flavoured commit verbs
+    # 32 Polysyndetic tripleting: counted by a function, see HEURISTICS
+    # 33 AI-flavoured commit verbs
     Pattern(
-        32,
+        33,
         "ai_commit_verbs",
         _re(
             r"^(feat|fix|chore|refactor|perf|docs|style|test)(\([^)]+\))?:\s+"
@@ -405,9 +426,9 @@ PATTERNS: list[Pattern] = [
         weight=2.0,
         profile_carveouts={"commit": 3.0, "academic": 0.0, "docs": 0.0, "blog": 0.0},
     ),
-    # 33 Methodology pseudo-precision
+    # 34 Methodology pseudo-precision
     Pattern(
-        33,
+        34,
         "methodology_pseudo",
         _re(
             r"\b(careful evaluation|rigorous analysis|comprehensive (study|review|analysis)|"
@@ -417,9 +438,9 @@ PATTERNS: list[Pattern] = [
         weight=2.0,
         profile_carveouts={"academic": 2.5, "commit": 0.0},
     ),
-    # 34 Dissertation-grade hedging
+    # 35 Dissertation-grade hedging
     Pattern(
-        34,
+        35,
         "dissertation_hedging",
         _re(
             r"\b(it can be argued that|one might (consider|suggest|argue)|"
@@ -591,7 +612,7 @@ _TRIPLET_RE = re.compile(
 
 
 def count_polysyndetic_tripleting(text: str) -> int:
-    """#31. Count paragraphs with 3+ 'X, Y, and Z' patterns.
+    """#32. Count paragraphs with 3+ 'X, Y, and Z' patterns.
 
     Items may carry a determiner, so "the code, the tests, and the docs" counts.
     An earlier version matched only bare single words, which missed most real
@@ -615,7 +636,7 @@ HEURISTICS = (
     (7, "repeated_openings", count_repeated_openings, 0.5),
     (20, "title_case_headings", count_title_case_headings, 0.7),
     (24, "repeated_heading", count_fragmented_headers, 1.0),
-    (31, "polysyndetic_tripleting", count_polysyndetic_tripleting, 1.5),
+    (32, "polysyndetic_tripleting", count_polysyndetic_tripleting, 1.5),
 )
 
 # Upper bound (exclusive) of each score band, lowest first.
@@ -771,11 +792,11 @@ def run_hook() -> int:
 
 
 # Printed under every human-readable score. A number this tool calls "clean" is a
-# statement about 34 known patterns and nothing else -- see DETECTION_ROBUSTNESS.md
+# statement about 34 scorable patterns and nothing else -- see DETECTION_ROBUSTNESS.md
 # for why a classifier trained on Claude's phrase distributions is a different
 # question entirely. Deliberately absent from --json: machines do not misread a
 # verdict, people do.
-SCORE_SCOPE = "34 known patterns, not detector evasion — see DETECTION_ROBUSTNESS.md"
+SCORE_SCOPE = "34 scorable patterns, not detector evasion — see DETECTION_ROBUSTNESS.md"
 
 
 def main(argv: list[str] | None = None) -> int:

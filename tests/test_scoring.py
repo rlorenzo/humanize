@@ -26,7 +26,9 @@ SLOP = (
 )
 
 # Exemplar sentences that must trigger each regex-based pattern
-# (pattern name -> (id, text)), numbered as in the v3.0.0 re-sync.
+# (pattern name -> (id, text)), numbered as in the v3.1.0 re-sync. Pattern 26
+# (upstream's "re-explaining what the reader knows") has no exemplar: it is not
+# implemented, see the comment in humanize_score.py.
 EXEMPLARS = {
     "not_x_but_y": (1, "This does not mean every choice is equal. It means none is checked."),
     "one_line_closers": (2, "Then it arrived. No aesthetic prior. No nostalgia at all."),
@@ -51,41 +53,74 @@ EXEMPLARS = {
     "curly_quotes": (21, "He said \u201cthe project is on track\u201d yesterday."),
     "chatbot_residue": (22, "Great question! The answer is four."),
     "cutoff_disclaimer": (23, "Her early life is not publicly available."),
-    "previous_version_writing": (25, "This replaces the previous approach of iterating."),
-    "citation_laundering": (26, "Studies show that results improved."),
-    "manuscript_boilerplate": (27, "To the best of our knowledge, nothing exists."),
-    "tutorial_scaffolding": (28, "Let's walk through how the pipeline works."),
-    "stat_parade": (29, "The difference was significant (p < 0.001)."),
-    "temporal_hedges": (30, "Currently, the field is evolving."),
-    "ai_commit_verbs": (32, "feat: improves robustness and enhances functionality"),
-    "methodology_pseudo": (33, "A careful evaluation was performed."),
-    "dissertation_hedging": (34, "It can be argued that this has advantages."),
+    "document_self_reference": (25, "This replaces the previous approach of iterating."),
+    "citation_laundering": (27, "Studies show that results improved."),
+    "manuscript_boilerplate": (28, "To the best of our knowledge, nothing exists."),
+    "tutorial_scaffolding": (29, "Let's walk through how the pipeline works."),
+    "stat_parade": (30, "The difference was significant (p < 0.001)."),
+    "temporal_hedges": (31, "Currently, the field is evolving."),
+    "ai_commit_verbs": (33, "feat: improves robustness and enhances functionality"),
+    "methodology_pseudo": (34, "A careful evaluation was performed."),
+    "dissertation_hedging": (35, "It can be argued that this has advantages."),
 }
 
 
-def test_pattern_ids_are_1_to_34_with_unique_names():
+def test_pattern_ids_are_1_to_35_with_unique_names():
     catalogue = [(p.pid, p.name) for p in hs.PATTERNS] + [h[:2] for h in hs.HEURISTICS]
-    assert {pid for pid, _ in catalogue} == set(range(1, 35))
+    # Pattern 26 (upstream, context-dependent) is not scorable, so it has no id here.
+    assert {pid for pid, _ in catalogue} == set(range(1, 36)) - {26}
     # #19 and #20 each have two parts; every other id has one.
     assert len(catalogue) == 36
     assert len({name for _, name in catalogue}) == 36
 
 
 @pytest.mark.parametrize(
-    "text", ["It is a high-quality report.", "It is a high-quality, data-driven report."]
+    "text", ["It is a high-quality report.", "It is a high-quality, well-documented report."]
 )
 def test_hyphenated_pair_before_a_noun_is_not_flagged(text):
     assert "hyphenated_pairs" not in hs.score_text(text)["breakdown"]
 
 
 def test_hyphenated_pair_before_a_comma_in_predicate_is_flagged():
-    text = "The team is cross-functional, and the report is late."
+    text = "The product is client-facing, and the report is late."
     assert hs.score_text(text)["breakdown"].get("hyphenated_pairs") == 1
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "The team is cross-functional, and the report is late.",
+        "The report is data-driven.",
+        "This is decision-making at its finest.",
+        "The pipeline is end-to-end.",
+        "We signed a third-party agreement.",
+    ],
+)
+def test_dictionary_fixed_compound_is_never_flagged(text):
+    # Upstream v3.1.0 narrowed #10 to compound modifiers whose hyphen is
+    # position-dependent. Words the dictionary always hyphenates (third-party,
+    # cross-functional) and the other dropped pairs are not tells.
+    assert "hyphenated_pairs" not in hs.score_text(text)["breakdown"]
 
 
 @pytest.mark.parametrize("text", ["That is the real win.", "That\u2019s the real win."])
 def test_one_line_closer_watch_phrase(text):
     assert hs.score_text(text)["breakdown"].get("one_line_closers") == 1
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "That distinction matters.",
+        "The message was clear: ship it.",
+        "This shows the importance of testing early.",
+        "It was a lesson in patience.",
+    ],
+)
+def test_one_line_closer_catches_example_narration(text):
+    # Upstream v3.1.0 widened #2 to a sentence that names what an example just
+    # showed instead of adding to it.
+    assert hs.score_text(text)["breakdown"].get("one_line_closers", 0) >= 1
 
 
 def test_en_dash_in_a_number_range_is_not_flagged():
@@ -167,10 +202,11 @@ def test_citation_in_a_later_sentence_does_not_count(end):
         ("Marking a pivotal moment for us.", "ai_vocabulary"),
         ("Underscoring its importance here.", "shallow_ing"),
         ("Underscoring\nits importance here.", "shallow_ing"),
-        ("Fostering growth matters.", "ai_vocabulary"),
+        ("Fostering growth matters.", "shallow_ing"),
         ("It could be argued that it works.", "dissertation_hedging"),
         ("One might suggest that it works.", "dissertation_hedging"),
         ("Let's walk through the setup.", "tutorial_scaffolding"),
+        ("The crowd was vibrant tonight.", "ai_vocabulary"),
     ],
 )
 def test_a_phrase_is_counted_by_one_pattern_only(phrase, name):
@@ -202,6 +238,52 @@ def test_hyperlink_is_not_a_vague_connection():
     text = "A reader sees your headline linked to your page."
     assert "vague_connection" not in hs.score_text(text)["breakdown"]
     assert hs.score_text("The rise is linked to rates.")["breakdown"].get("vague_connection") == 1
+
+
+def test_boasts_is_no_longer_sales_language():
+    # Upstream v3.1.0 dropped "boasts" from #16's watch list; it already sat in
+    # #18's own watch list in patterns/core.md, which this scorer does not
+    # implement, so the phrase now scores nothing rather than double-counting.
+    assert hs.score_text("The company boasts record growth.")["breakdown"] == {}
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "These figures are generated from each vendor's published pricing.",
+        "The list is compiled from last quarter's survey responses.",
+        "The figures below are drawn from each vendor's published pricing.",
+    ],
+)
+def test_document_self_reference_catches_method_narration(text):
+    assert hs.score_text(text)["breakdown"].get("document_self_reference", 0) >= 1
+
+
+def test_document_self_reference_does_not_flag_an_ordinary_legend():
+    # Upstream v3.1.0 added "a legend, layout, or order the reader can already
+    # see" to this pattern's watch list, but it is too close to ordinary
+    # signposting in docs to match reliably, so it is deliberately not regexed.
+    text = "The table below compares pricing across vendors."
+    assert "document_self_reference" not in hs.score_text(text)["breakdown"]
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Wheels are compiled from source on install.",
+        "The binary is compiled from C.",
+        "This file is generated from schema.yaml; do not edit.",
+    ],
+)
+def test_document_self_reference_does_not_flag_build_steps(text):
+    # Method narration describes how the text was put together; a build step
+    # describes the subject, so only a data noun as subject counts.
+    assert "document_self_reference" not in hs.score_text(text)["breakdown"]
+
+
+def test_message_was_clear_needs_the_colon():
+    text = "The message was clear to everyone in the room."
+    assert "one_line_closers" not in hs.score_text(text)["breakdown"]
 
 
 def test_deep_sayings_requires_copula():
