@@ -706,6 +706,13 @@ def score_text(text: str, profile: str = "blog") -> dict:
 
 PROSE_SUFFIXES = {".md", ".tex", ".rst", ".txt"}
 SKIP_PATH_PARTS = (".claude/", "/node_modules/", "/.git/")
+# Cheap early exit for the common case, a code file saved as .txt or .md for
+# upload or pasting ("fcs_mid.php.txt"). looks_like_code() is the real gate.
+CODE_SUFFIXES = {
+    ".php", ".py", ".js", ".ts", ".jsx", ".tsx", ".java", ".c", ".h", ".cpp", ".cs", ".go",
+    ".rs", ".rb", ".sh", ".sql", ".json", ".yaml", ".yml", ".xml", ".html", ".css", ".log",
+    ".csv", ".ini", ".toml", ".env", ".lock",
+}  # fmt: skip
 
 # The hook runs on every Write/Edit, so scoring cost is paid interactively.
 # Measured: ~180 ms of interpreter startup regardless of size, 760 ms at 1 MB,
@@ -723,12 +730,43 @@ def debug(message: str) -> None:
         print(f"[humanize:debug] {message}", file=sys.stderr)
 
 
+_CODE_SYMBOL_RE = re.compile(r"[{};$=<>()\[\]\\]")
+_SENTENCE_END_RE = re.compile(r"""[.?!:]["')\]*_]*$""")
+_CODE_SAMPLE_CHARS = 50_000
+
+
+def looks_like_code(text: str) -> bool:
+    """True when text reads as source or data rather than prose.
+
+    Measured on this repo: prose docs run 0.01-0.04 symbols per letter and
+    11-79% sentence-like lines; source and config run 0.07-1.0 and 0-16%.
+    """
+    if text.lstrip()[:1] in ("{", "["):
+        # Long string values dilute the symbol density, so parse instead.
+        try:
+            json.loads(text)
+        except ValueError:
+            pass
+        else:
+            return True
+    sample = text[:_CODE_SAMPLE_CHARS]
+    letters = sum(c.isalpha() for c in sample) or 1
+    symbols = len(_CODE_SYMBOL_RE.findall(sample))
+    lines = [ln.strip() for ln in sample.splitlines() if ln.strip()]
+    sentences = sum(1 for ln in lines if len(ln.split()) >= 5 and _SENTENCE_END_RE.search(ln))
+    density = symbols / letters
+    sentence_share = sentences / max(len(lines), 1)
+    return density > 0.1 or (density > 0.05 and sentence_share < 0.1)
+
+
 def hook_skip_reason(path: Path, file_path: str) -> str | None:
     """Why this payload should not be scored, or None to go ahead."""
     if not file_path:
         return "payload has no tool_input.file_path"
     if path.suffix.lower() not in PROSE_SUFFIXES:
         return f"suffix {path.suffix!r} is not prose {sorted(PROSE_SUFFIXES)}"
+    if Path(path.stem).suffix.lower() in CODE_SUFFIXES:
+        return f"{path.name!r} is a code or data file with a prose extension"
     if any(part in str(path).replace("\\", "/") for part in SKIP_PATH_PARTS):
         return f"path matches an excluded part {SKIP_PATH_PARTS}"
     if not path.is_file():
@@ -764,6 +802,9 @@ def run_hook(as_json: bool = False) -> int:
         except ValueError:
             threshold = 60.0
         text = path.read_text(encoding="utf-8", errors="replace")
+        if looks_like_code(text):
+            debug(f"skipped {file_path!r}: content looks like code, not prose")
+            return 0
         result = score_text(text, profile=detect_profile(path))
         if as_json:
             print(json.dumps({**result, "path": file_path, "threshold": threshold}))

@@ -13,6 +13,14 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- The hook no longer scores source or data saved with a prose extension, such as
+  `fcs_mid.php.txt` or `dump.txt`. A file whose name has a code extension before the
+  prose one (`.php.txt`) is skipped outright; any other file is skipped when it parses
+  as JSON or its content reads as code (a high share of `{};$=<>()` and few
+  sentence-like lines).
+
 ## [3.2.0] - 2026-10-01
 
 ### Added
