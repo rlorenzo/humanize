@@ -547,6 +547,7 @@ def test_hook_scores_a_file_just_under_the_cap(tmp_path):
     ("filename", "expected"),
     [
         ("notes.py", "not prose"),
+        ("fcs_mid.php.txt", "code or data file"),
         ("missing.md", "not an existing file"),
     ],
 )
@@ -662,3 +663,32 @@ def test_bash_hook_survives_unset_home(tmp_path):
     )
     assert proc.returncode == 0
     assert "unbound variable" not in proc.stderr
+
+
+PHP_DUMP = "<?php\nfunction add($a, $b) {\n  $x = $a + $b;\n  if ($x > 3) { return $x; }\n}\n" * 10
+
+
+def test_looks_like_code_flags_source_and_data_not_prose():
+    assert hs.looks_like_code(PHP_DUMP)
+    assert hs.looks_like_code(json.dumps({"a": [1, 2, {"b": "c"}] * 20}, indent=1))
+    assert hs.looks_like_code(json.dumps({"notes": SLOP * 20}, indent=1))
+    assert not hs.looks_like_code(SLOP)
+    assert not hs.looks_like_code(
+        "| Item | Summary |\n|---|---|\n"
+        "| Scorer | It reads the file and returns a number for each pattern it finds. |\n"
+        "| Hook | It runs after every write and warns when the score is high. |\n"
+    )
+    assert not hs.looks_like_code("Short factual note. Nothing fancy here.")
+
+
+def test_hook_skips_code_saved_with_a_plain_prose_name(tmp_path):
+    dump = tmp_path / "dump.txt"
+    dump.write_text(PHP_DUMP, encoding="utf-8")
+    proc = subprocess.run(
+        [sys.executable, str(SCORER), "--hook", "--json"],
+        input=hook_payload(dump),
+        capture_output=True,
+        text=True,
+    )
+    assert proc.returncode == 0
+    assert proc.stdout == ""
