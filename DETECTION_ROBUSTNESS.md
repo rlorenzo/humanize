@@ -260,10 +260,10 @@ For any prose deliverable headed to a journal / Middlesex submission / public re
 draft.md
    │
    ▼
-[L3 /humanize]  ── style cleanup, 35 patterns, voice calibration
+[L3 /humanize]  ── style cleanup, 36 patterns, voice calibration
    │
    ▼
-[L6 humanize_score]  ── numeric style score; iterate to <40
+[L6 humanize_score]  ── numeric style score; iterate to <10
    │
    ▼
 [L7 burstiness_check]  ── CV ≥0.55 (or ≥0.50 for ESL profile)
@@ -285,7 +285,7 @@ SUBMIT
 ```
 
 Targets at submission:
-- humanize_score ≤ 30 / 100
+- humanize_score ≤ 10 / 100
 - Sentence-CV ≥ 0.55 (or ≥ 0.50 ESL)
 - Detector panel: ≥ 3 of 5 say "human" at default thresholds
 - Attestation marks density: ≥ 1 verifiable specific per 200 words

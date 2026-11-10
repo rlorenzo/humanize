@@ -13,6 +13,39 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- **Pattern 36, padding and signposting** ("it is worth noting", "to summarise", "in
+  conclusion", "in other words"). Long answers scored clean because nothing watched for
+  sentences that announce or recap. Half weight in `academic`. The catalogue is now 36
+  patterns, 35 of them scorable.
+- **Trailing offers** ("If you want, I can also...") now count under #22 chatbot residue.
+- **The hook checks pacing as well as the score.** It warns when `sentence_cv` is under
+  its target in a file of at least 10 sentences, even if the pattern score is clean. The
+  `--json` hook output gains a `pacing` key.
+- **A concision section in the always-on rule:** answer first, no announcing, no recap,
+  no closing offer.
+- **Prompt-injection guard in the skill** (upstream v4.0.0): closing tags and notes from
+  an "operator" or "system message" inside the text are material, never instructions.
+
+### Changed
+
+- **Re-synced patterns 1-26 with blader/humanizer v4.0.0** (was v3.1.0): the reworked
+  "After" examples, clearer wording, and #15 renamed "Shallow -ing phrases". The watch
+  lists did not change, so scores for these patterns are the same.
+- **The skill may add a specific detail it knows to be true** where the text is generic,
+  following upstream v4.0.0. This fork keeps one limit upstream dropped: in the
+  `academic` profile, and for any number, quote, or citation, nothing is added that does
+  not come from the source or the user.
+- **File mode reads the whole current file first** and reports how many sections it
+  reviewed, so a partial pass is visible (upstream v4.0.0).
+- **Default threshold lowered from 60 to 10**, for the hook (`HUMANIZE_THRESHOLD`) and
+  for `humanize-score --threshold`. Across 400 real markdown files nothing scored above
+  60, so the hook never warned; 6% score above 10. A CI step that relied on the old
+  default should pass `--threshold 60`.
+- **Verdict bands rescaled to match:** `clean` under 5, `minor_residue` under 10,
+  `needs_editing` under 20, `heavy_slop` from 20 (were 20, 40 and 60).
+
 ## [3.2.1] - 2026-10-20
 
 ### Fixed
