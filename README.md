@@ -1,6 +1,6 @@
 # humanize
 
-> Anti-slop framework for Claude Code. Skill + scorer + agent + hook + always-on rule. Strips 35 AI-writing patterns. Domain-aware (academic / docs / blog / commit). Extends [blader/humanizer](https://github.com/blader/humanizer) (synced at v3.1.0).
+> Anti-slop framework for Claude Code. Skill + scorer + agent + hook + always-on rule. Strips 36 AI-writing patterns. Domain-aware (academic / docs / blog / commit). Extends [blader/humanizer](https://github.com/blader/humanizer) (synced at v4.0.0).
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Compatible: Claude Code](https://img.shields.io/badge/Compatible-Claude%20Code-blue)](https://claude.ai/claude-code)
@@ -21,11 +21,11 @@
 
 Plus four **domain profiles** (academic, docs, blog, commit) with their own carve-outs. Em-dashes are fine in scientific prose. Passive voice is correct in IMRaD methods. Vague attributions are flagged hard in academic but allowed (with citation) in docs. The framework adapts.
 
-## What it detects (35 patterns)
+## What it detects (36 patterns)
 
-Inherits 26 from [blader/humanizer](https://github.com/blader/humanizer) v3.1.0, ordered strongest first in six groups: staging instead of stating (not-X-but-Y contrasts, one-line closers, staged openers), rhythm by rule (forced triads, dashes), inflation and borrowed authority, formatting by rule, leftovers from the chat, and writing for the wrong reader (a reply that re-explains context the other person already has). Summaries in [SKILL.md](SKILL.md), full text with before/after in [patterns/core.md](patterns/core.md). Upstream's no-fabrication rule and "when not to act" guardrails are adopted too.
+Inherits 26 from [blader/humanizer](https://github.com/blader/humanizer) v4.0.0, ordered strongest first in six groups: staging instead of stating (not-X-but-Y contrasts, one-line closers, staged openers), rhythm by rule (forced triads, dashes), inflation and borrowed authority, formatting by rule, leftovers from the chat, and writing for the wrong reader (a reply that re-explains context the other person already has). Summaries in [SKILL.md](SKILL.md), full text with before/after in [patterns/core.md](patterns/core.md). Upstream's no-fabrication rule and "when not to act" guardrails are adopted too.
 
-New extensions (#27-35):
+New extensions (#27-36):
 
 | # | Pattern | Why it matters |
 |---|---|---|
@@ -38,6 +38,7 @@ New extensions (#27-35):
 | 33 | AI-flavoured commit verbs ("improves", "enhances") | Commit-specific |
 | 34 | Methodology pseudo-precision ("careful", "rigorous", "comprehensive") | Self-praise without specifics |
 | 35 | Dissertation-grade hedging where stance is required | Academic-only |
+| 36 | Padding and signposting ("It is worth noting", "To summarise") | Length without content |
 
 ## Install (Claude Code plugin — recommended)
 
@@ -96,9 +97,9 @@ git clone --depth 1 https://github.com/rlorenzo/humanize.git /tmp/humanize &&
 
 ```bash
 $ python ~/.claude/skills/humanize/scripts/humanize_score.py STAGE3/MANUSCRIPT.md
-humanize_score: 38.4/100  (minor_residue)
+humanize_score: 8.4/100  (minor_residue)
 profile:        academic  (3,420 words)
-scope:          34 scorable patterns, not detector evasion — see DETECTION_ROBUSTNESS.md
+scope:          35 scorable patterns, not detector evasion — see DETECTION_ROBUSTNESS.md
 top offenders:
   - methodology_pseudo                weighted=12.50
   - inflated_significance             weighted=7.50
@@ -114,7 +115,7 @@ python humanize_score.py --json --profile=docs README.md
 
 ### What the score does not mean
 
-The number is a weighted rate of the 34 scorable patterns in this catalogue (35
+The number is a weighted rate of the 35 scorable patterns in this catalogue (36
 total; #26, re-explaining what the reader already knows, needs conversation context
 no file-based scorer has), per 100 words.
 A long clean draft and a short one score the same. That is a claim about writing
@@ -124,7 +125,7 @@ It is **not** a prediction about any AI detector. [Pangram](https://www.pangram.
 which trains on the phrase distributions of specific models rather than on
 perplexity, detects at roughly 18% where perplexity-and-burstiness detectors sit
 near 0.24% — and clearing this catalogue does not move that number, because the two
-are measuring different things. A score of 0 means these 34 patterns are absent. It
+are measuring different things. A score of 0 means these 35 patterns are absent. It
 does not mean text will pass a classifier, and nothing here should be relied on as
 though it did.
 
@@ -139,7 +140,7 @@ catching it at review.
 ### Statistical check
 
 `burstiness_check.py` measures what the pattern list structurally cannot: a draft
-can score clean on all 34 patterns and still read as machine-written because every
+can score clean on all 35 patterns and still read as machine-written because every
 sentence is the same length.
 
 ```bash
@@ -202,7 +203,7 @@ you install one (for example `brew install python`) and restart Claude Code.
 
 ### Hooked into commit time
 
-The hook auto-fires after any `.md` / `.tex` Edit/Write and warns when the score exceeds 60. Tune with `HUMANIZE_THRESHOLD=70` in your shell.
+The hook auto-fires after any `.md` / `.tex` Edit/Write and warns when the score exceeds 10, or when a file of at least 10 sentences has uniform sentence lengths (`sentence_cv` under its target). Tune the score with `HUMANIZE_THRESHOLD=20` in your shell.
 
 With the plugin installed on Claude Code 2.1.287 or later, a small mod
 (`hooks/register.ts`) also shows you the result: after each prose Edit/Write the status
@@ -215,7 +216,7 @@ The hook stays silent to Claude otherwise, including when it fails — a scoring
 
 ```bash
 $ HUMANIZE_DEBUG=1 echo '{"tool_input":{"file_path":"draft.md"}}' | ~/.claude/hooks/humanize-post-write.sh
-[humanize:debug] draft.md scored 12.0 at or under threshold 60
+[humanize:debug] draft.md scored 4.0 at or under threshold 10
 ```
 
 Files over 2 MB are skipped. The hook runs on every write, and a 9 MB file took 6.7 s to score; a prose draft is not 2 MB.
@@ -282,7 +283,7 @@ MIT — see [LICENSE](LICENSE).
 ## Credits
 
 Original author: Kimal Honour Djam ([@kimhons](https://github.com/kimhons)) — the
-six-layer design, and patterns 27-35.
+six-layer design, and patterns 27-35. Pattern 36 was added in this fork.
 
 Patterns 1-26 come from [blader/humanizer](https://github.com/blader/humanizer),
 which draws them from Wikipedia's "Signs of AI writing".

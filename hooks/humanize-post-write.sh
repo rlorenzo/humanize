@@ -4,7 +4,7 @@
 # JSON from stdin to the scorer's --hook mode, which scores prose files
 # (.md, .tex, .rst, .txt) outside .claude/ and emits
 # hookSpecificOutput.additionalContext JSON when the score exceeds the
-# threshold (HUMANIZE_THRESHOLD, default 60) so Claude sees the warning.
+# threshold (HUMANIZE_THRESHOLD) so Claude sees the warning.
 #
 # Installed as a plugin, hooks/hooks.json registers this automatically. For a
 # manual install, copy the SessionStart and PostToolUse entries from hooks/hooks.json into

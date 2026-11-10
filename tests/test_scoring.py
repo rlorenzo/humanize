@@ -62,16 +62,17 @@ EXEMPLARS = {
     "ai_commit_verbs": (33, "feat: improves robustness and enhances functionality"),
     "methodology_pseudo": (34, "A careful evaluation was performed."),
     "dissertation_hedging": (35, "It can be argued that this has advantages."),
+    "padding_signposts": (36, "It is worth noting that this affects every caller."),
 }
 
 
-def test_pattern_ids_are_1_to_35_with_unique_names():
+def test_pattern_ids_are_1_to_36_with_unique_names():
     catalogue = [(p.pid, p.name) for p in hs.PATTERNS] + [h[:2] for h in hs.HEURISTICS]
     # Pattern 26 (upstream, context-dependent) is not scorable, so it has no id here.
-    assert {pid for pid, _ in catalogue} == set(range(1, 36)) - {26}
+    assert {pid for pid, _ in catalogue} == set(range(1, 37)) - {26}
     # #19 and #20 each have two parts; every other id has one.
-    assert len(catalogue) == 36
-    assert len({name for _, name in catalogue}) == 36
+    assert len(catalogue) == 37
+    assert len({name for _, name in catalogue}) == 37
 
 
 @pytest.mark.parametrize(
@@ -414,7 +415,7 @@ def test_hook_mode_silent_on_clean_nonprose_and_missing(tmp_path):
 def test_hook_mode_threshold_env(tmp_path):
     f = tmp_path / "slop.md"
     f.write_text(SLOP, encoding="utf-8")
-    # A garbage threshold falls back to 60 and still warns on heavy slop.
+    # A garbage threshold falls back to the default and still warns on heavy slop.
     proc = run_hook_mode(hook_payload(f), {"HUMANIZE_THRESHOLD": "banana"})
     assert proc.returncode == 0
     assert "additionalContext" in proc.stdout
@@ -451,6 +452,7 @@ def test_hook_json_mode_reports_every_scored_file(tmp_path):
     )
     out = json.loads(proc.stdout)
     assert out["path"] == str(clean) and out["score"] <= out["threshold"]
+    assert out["pacing"] is None  # one sentence: under MIN_PACING_SENTENCES
     assert "hookSpecificOutput" not in out
     # A file the hook skips still prints nothing.
     code = tmp_path / "app.py"
@@ -692,3 +694,43 @@ def test_hook_skips_code_saved_with_a_plain_prose_name(tmp_path):
     )
     assert proc.returncode == 0
     assert proc.stdout == ""
+
+
+def test_default_threshold_is_the_needs_editing_boundary(tmp_path):
+    """The hook must not say "(clean), above threshold": the default sits on a band edge."""
+    f = tmp_path / "draft.md"
+    f.write_text(SLOP, encoding="utf-8")
+    assert hs.main([str(f)]) == 1
+
+
+# Twelve sentences of near-identical length and no watched phrase: clean on every
+# pattern, flat on pacing. This is the shape of current model prose.
+UNIFORM = " ".join(
+    f"The {noun} handles one request and returns a short plain answer."
+    for noun in (
+        "parser", "router", "cache", "worker", "queue", "client",
+        "server", "logger", "mapper", "loader", "writer", "reader",
+    )
+)  # fmt: skip
+
+
+def test_padding_and_offers_are_scored():
+    padded = "To summarise, the fix is one line. If you want, I can also add a metric."
+    breakdown = hs.score_text(padded)["breakdown"]
+    assert breakdown["padding_signposts"] == 1
+    assert breakdown["chatbot_residue"] == 1
+
+
+def test_hook_warns_on_uniform_pacing_under_the_score_threshold(tmp_path):
+    f = tmp_path / "flat.md"
+    f.write_text(UNIFORM, encoding="utf-8")
+    assert hs.score_text(UNIFORM)["score"] <= hs.DEFAULT_THRESHOLD
+    proc = run_hook_mode(hook_payload(f))
+    assert proc.returncode == 0
+    context = json.loads(proc.stdout)["hookSpecificOutput"]["additionalContext"]
+    assert "Uniform pacing" in context and "above threshold" not in context
+
+
+def test_pacing_needs_a_full_draft():
+    """Under MIN_PACING_SENTENCES the statistic is noise, so short files never flag."""
+    assert hs.pacing_flag("One short line here. Another short line here.") is None

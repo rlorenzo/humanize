@@ -20,9 +20,20 @@
 14. No commit verbs that say nothing ("improves", "enhances", "refines").
 15. No fragmented headers (heading + 1-line restatement).
 
+## Say it once, then stop
+
+Length is the tell the scorer cannot see, so I hold it here.
+
+1. Answer first. The first sentence carries the result, not the plan or the question restated.
+2. No announcing ("It is worth noting that", "It is important to note"). State the thing.
+3. No recap of what I just wrote ("To summarise", "In summary", "In conclusion", "In other words").
+4. No closing offer ("If you want, I can also..."). Do it, or leave it out.
+5. One sentence per point. If cutting a sentence loses no fact, cut it.
+6. Match length to the question: a short question gets a short answer.
+
 ## When in doubt
 
-Run `skills/humanize/scripts/humanize_score.py FILE.md` from the Claude home this rule is installed in (`~/.claude` unless `CLAUDE_HOME` was set at install). If score >40, edit before shipping. If score >60, the PostToolUse hook will warn me. The `humanizer-reviewer` agent does the deep pass.
+Run `skills/humanize/scripts/humanize_score.py FILE.md` from the Claude home this rule is installed in (`~/.claude` unless `CLAUDE_HOME` was set at install). If score >10, edit before shipping; the PostToolUse hook warns me at the same mark. The `humanizer-reviewer` agent does the deep pass.
 
 ## Profile-aware exceptions
 

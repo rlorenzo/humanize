@@ -3,18 +3,18 @@
 
 Returns JSON: {"score": 0-100, "breakdown": {pattern_name: count}, "top_offenders": [...], "profile": "..."}.
 Lower score = more human. Threshold convention:
-   0-20   clean / human
-   20-40  some AI residue, acceptable
-   40-60  obvious patterns, needs editing
-   60-100 heavy slop, rewrite
+   0-5    clean / human
+   5-10   some AI residue, acceptable
+   10-20  obvious patterns, needs editing
+   20-100 heavy slop, rewrite
 
-WHAT THE SCORE DOES NOT MEAN: it is a weighted rate of the 34 scorable patterns in
-this catalogue (35 total; #26 needs conversation context no file-based scorer has),
+WHAT THE SCORE DOES NOT MEAN: it is a weighted rate of the 35 scorable patterns in
+this catalogue (36 total; #26 needs conversation context no file-based scorer has),
 per 100 words, not a raw count of hits. That is a claim about writing quality, not a
 prediction about any AI detector. Pangram, which trains on Claude's actual phrase
 distributions, detects at roughly 18% where detectors built on perplexity and
 burstiness sit near 0.24%. Clearing this catalogue does not move that number, and a
-score of 0 guarantees nothing except that these 34 patterns are absent. See
+score of 0 guarantees nothing except that these 35 patterns are absent. See
 DETECTION_ROBUSTNESS.md.
 
 Pure Python, zero dependencies. Requires Python 3.14+.
@@ -40,10 +40,10 @@ import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
-# ---- Pattern definitions (34 scorable patterns) --------------------------------
+# ---- Pattern definitions (35 scorable patterns) --------------------------------
 
-# Numbered as in blader/humanizer v3.1.0 (1-25, strongest first; #26 is omitted, see
-# below) plus this fork's extensions (27-35). Most are regexes, listed here; #7, #24,
+# Numbered as in blader/humanizer v4.0.0 (1-25, strongest first; #26 is omitted, see
+# below) plus this fork's extensions (27-36). Most are regexes, listed here; #7, #24,
 # #32 and the title-case half of #20 are counted by functions, listed in HEURISTICS.
 # #19 and #20 each have two parts with their own names and weights.
 # profile_carveouts maps profile -> multiplier (1.0 default; 0.0 disables; 0.5 reduces).
@@ -320,7 +320,7 @@ PATTERNS: list[Pattern] = [
         _re(
             r"\b(I hope this helps|let me know if|here is (a|an|the)|of course!|"
             r"certainly!|you['‘’]re absolutely right|would you like (me to)?|happy to help|"
-            r"want me to|should I continue|"
+            r"want me to|should I continue|if you(?:['‘’]d like| want),? I can|"
             r"great question!|excellent point|that['‘’]s a (great|fantastic|wonderful)|"
             r"brilliant observation)(?!\w)"
             # (?!\w), not \b: after "question!" a closing \b never matches.
@@ -448,6 +448,21 @@ PATTERNS: list[Pattern] = [
         ),
         weight=1.8,
         profile_carveouts={"academic": 2.5, "commit": 0.0},
+    ),
+    # 36 Padding and signposting: announcing, recapping. The trailing offer ("if you
+    # want, I can") sits in #22 with the other chatbot offers. Half weight in academic,
+    # where "in conclusion" and "in summary" open real sections.
+    Pattern(
+        36,
+        "padding_signposts",
+        _re(
+            r"\b(it(?: is|['‘’]s) (worth noting|important to note)|it should be noted|"
+            r"to summari[sz]e|in summary|in conclusion|to sum up|in other words|"
+            r"as (mentioned|noted) (above|earlier|before|previously)|"
+            r"the overall effect is|needless to say)\b"
+        ),
+        weight=1.5,
+        profile_carveouts={"academic": 0.5},
     ),
 ]
 
@@ -640,7 +655,9 @@ HEURISTICS = (
 )
 
 # Upper bound (exclusive) of each score band, lowest first.
-VERDICT_BANDS = ((20, "clean"), (40, "minor_residue"), (60, "needs_editing"))
+VERDICT_BANDS = ((5, "clean"), (10, "minor_residue"), (20, "needs_editing"))
+# The hook warns and the CLI exits non-zero from "needs_editing" up.
+DEFAULT_THRESHOLD = float(next(b for b, name in VERDICT_BANDS if name == "minor_residue"))
 
 
 # ---- Profile detection --------------------------------------------------------
@@ -700,6 +717,35 @@ def score_text(text: str, profile: str = "blog") -> dict:
         "top_offenders": [{"pattern": k, "weighted": round(v, 2)} for k, v in top_offenders],
         "verdict": verdict,
     }
+
+
+# ---- Pacing (hook only) -------------------------------------------------------
+
+# Below this many sentences the coefficient of variation is noise, not a signal.
+MIN_PACING_SENTENCES = 10
+
+
+def pacing_flag(text: str) -> str | None:
+    """The sentence_cv flag from burstiness_check, or None.
+
+    Uniform sentence length is the one tell current model prose still shows when
+    every watch list comes back empty, so the hook reads it as well as the score.
+
+    The import is local so the CLI and the files the hook skips do not pay for it,
+    and two-way because the hook runs this file as a bare script, where the sibling
+    module is importable but the package is not.
+    """
+    try:
+        from humanize_anti_slop import burstiness_check
+    except ImportError:
+        import burstiness_check
+    result = burstiness_check.analyse(text)
+    if result["metrics"]["sentence_count"] < MIN_PACING_SENTENCES:
+        return None
+    return next(
+        (f for f in result["flags"] if "sentence_cv" in burstiness_check.flagged_metrics([f])),
+        None,
+    )
 
 
 # ---- PostToolUse hook mode ----------------------------------------------------
@@ -780,7 +826,8 @@ def hook_skip_reason(path: Path, file_path: str) -> str | None:
 def run_hook(as_json: bool = False) -> int:
     """Read a Claude Code PostToolUse JSON payload from stdin, score the written
     file if it is prose, and emit hookSpecificOutput.additionalContext JSON when
-    the score exceeds HUMANIZE_THRESHOLD (default 60).
+    the score exceeds HUMANIZE_THRESHOLD (default DEFAULT_THRESHOLD) or the
+    sentence lengths are uniform (see pacing_flag).
 
     Always exits 0: a scoring problem must never block a write. That silence is
     deliberate but it hid a real bug once -- the hook emitted a format Claude
@@ -798,26 +845,39 @@ def run_hook(as_json: bool = False) -> int:
             debug(f"skipped {file_path!r}: {skip}")
             return 0
         try:
-            threshold = float(os.environ.get("HUMANIZE_THRESHOLD", "60"))
+            threshold = float(os.environ.get("HUMANIZE_THRESHOLD", DEFAULT_THRESHOLD))
         except ValueError:
-            threshold = 60.0
+            threshold = DEFAULT_THRESHOLD
         text = path.read_text(encoding="utf-8", errors="replace")
         if looks_like_code(text):
             debug(f"skipped {file_path!r}: content looks like code, not prose")
             return 0
         result = score_text(text, profile=detect_profile(path))
+        pacing = pacing_flag(text)
         if as_json:
-            print(json.dumps({**result, "path": file_path, "threshold": threshold}))
+            print(
+                json.dumps({**result, "path": file_path, "threshold": threshold, "pacing": pacing})
+            )
             return 0
+        findings = []
         if result["score"] <= threshold:
             debug(f"{file_path} scored {result['score']} at or under threshold {threshold:g}")
-            return 0
-        offenders = ", ".join(
-            f"{o['pattern']} (weighted={o['weighted']})" for o in result["top_offenders"][:3]
-        )
+            if not pacing:
+                return 0
+        else:
+            offenders = ", ".join(
+                f"{o['pattern']} (weighted={o['weighted']})" for o in result["top_offenders"][:3]
+            )
+            findings.append(
+                f"scored {result['score']}/100 ({result['verdict']}), "
+                f"above threshold {threshold:g}. Top offenders: {offenders}."
+            )
+        if pacing:
+            findings.append(
+                f"Uniform pacing: {pacing}. Cut sentences that add nothing before padding any out."
+            )
         context = (
-            f"[humanize] {file_path} scored {result['score']}/100 ({result['verdict']}), "
-            f"above threshold {threshold:g}. Top offenders: {offenders}. "
+            f"[humanize] {file_path} {' '.join(findings)} "
             f"Consider rewriting with the humanize skill (/humanize {file_path})."
         )
         print(
@@ -839,11 +899,11 @@ def run_hook(as_json: bool = False) -> int:
 
 
 # Printed under every human-readable score. A number this tool calls "clean" is a
-# statement about 34 scorable patterns and nothing else -- see DETECTION_ROBUSTNESS.md
+# statement about 35 scorable patterns and nothing else -- see DETECTION_ROBUSTNESS.md
 # for why a classifier trained on Claude's phrase distributions is a different
 # question entirely. Deliberately absent from --json: machines do not misread a
 # verdict, people do.
-SCORE_SCOPE = "34 scorable patterns, not detector evasion — see DETECTION_ROBUSTNESS.md"
+SCORE_SCOPE = "35 scorable patterns, not detector evasion — see DETECTION_ROBUSTNESS.md"
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -863,8 +923,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--threshold",
         type=float,
-        default=60.0,
-        help="Exit non-zero if score exceeds threshold (default 60).",
+        default=DEFAULT_THRESHOLD,
+        help=f"Exit non-zero if score exceeds threshold (default {DEFAULT_THRESHOLD:g}).",
     )
     parser.add_argument(
         "--hook",
