@@ -205,13 +205,6 @@ you install one (for example `brew install python`) and restart Claude Code.
 
 The hook auto-fires after any `.md` / `.tex` Edit/Write and warns when the score exceeds 10, or when a file of at least 10 sentences has uniform sentence lengths (`sentence_cv` under its target). Tune the score with `HUMANIZE_THRESHOLD=20` in your shell.
 
-With the plugin installed on Claude Code 2.1.287 or later, a small mod
-(`hooks/register.ts`) also shows you the result: after each prose Edit/Write the status
-line under the prompt reads, for example,
-`humanize draft.md: 72.4/100 heavy_slop · not_x_but_y, ai_vocabulary`, and a file over
-the threshold raises a toast as well. It only displays; what Claude reads still comes
-from the hook. A file-based install (`install.sh`) has no mod.
-
 The hook stays silent to Claude otherwise, including when it fails — a scoring bug must never block a write. That silence hid a real bug once, so set `HUMANIZE_DEBUG=1` to see on stderr what it decided and why:
 
 ```bash
