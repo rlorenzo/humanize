@@ -13,6 +13,8 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [4.0.1] - 2026-11-16
+
 ### Removed
 
 - **The status-line badge mod (`hooks/register.ts`), added in 3.2.0.** It wrapped every
@@ -585,7 +587,8 @@ v4.0.0, the upstream release patterns 1-26 are synced with.
   `humanizer-reviewer` subagent, the PostToolUse hook, and `install.sh`.
 - `DETECTION_ROBUSTNESS.md`, recording what the score does and does not promise.
 
-[Unreleased]: https://github.com/rlorenzo/humanize/compare/v4.0.0...HEAD
+[Unreleased]: https://github.com/rlorenzo/humanize/compare/v4.0.1...HEAD
+[4.0.1]: https://github.com/rlorenzo/humanize/compare/v4.0.0...v4.0.1
 [4.0.0]: https://github.com/rlorenzo/humanize/compare/v3.2.1...v4.0.0
 [3.2.1]: https://github.com/rlorenzo/humanize/compare/v3.2.0...v3.2.1
 [3.2.0]: https://github.com/rlorenzo/humanize/compare/v3.1.0...v3.2.0
