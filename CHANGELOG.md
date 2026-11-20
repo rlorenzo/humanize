@@ -13,6 +13,13 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- **The skill no longer strips every bold label from list items.** Pattern §19 in
+  `patterns/core.md` and `SKILL.md` told the model to remove bold labels whenever every
+  item had one, though the scorer already flagged only labels the sentence after them
+  repeats. The guidance now matches the scorer: a label naming a distinct item stays.
+
 ## [4.0.1] - 2026-11-16
 
 ### Removed

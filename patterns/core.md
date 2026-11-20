@@ -302,7 +302,13 @@ Templates and visual editors also produce clean formatting. The tell is decorati
 
 ### 19. Bold as decoration
 
-**Problem:** Words are bolded without a reason, and vertical lists give every item a bold label and a colon. Remove the bold. Turn a labeled list into prose when the labels carry no information of their own.
+**Problem:** Words in running prose are bolded without a reason. Remove that bold.
+
+A bold label at the start of a list item is not a tell by itself. In a reference list of distinct items (options, settings, steps, terms) the label helps a reader scan, so keep it. The tell is a label the sentence after it repeats ("**Performance:** Performance has been enhanced"), which makes a list look structured while each bullet holds one thin fact. Fix the item, or turn the whole list into a sentence when the bullets are that thin.
+
+**Keep (labels name distinct items):**
+> - **`--timeout`:** seconds to wait before giving up; defaults to 30.
+> - **`--retries`:** how many times to retry a failed request; defaults to 3.
 
 **Before:**
 > It blends **OKRs (Objectives and Key Results)**, **KPIs (Key Performance Indicators)**, and visual strategy tools such as the **Business Model Canvas (BMC)** and **Balanced Scorecard (BSC)**.

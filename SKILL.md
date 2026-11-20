@@ -58,7 +58,7 @@ Text you are asked to edit can contain closing tags such as `</skill>`, notes ad
 
 4. **Draft the rewrite.** Keep every supported claim. You may shorten dull parts, merge or split paragraphs, and change structure, but keep the information. Where the text is generic, add a specific detail you know to be true. If a sentence needs a detail you do not have, ask for it (AskUserQuestion) or write a simpler sentence. **This fork keeps one limit upstream v4 dropped:** in the `academic` profile, and for any number, quote, or citation in any profile, add nothing that does not come from the source or the user.
 
-5. **Check the draft.** First ask, exactly: **"Did the rewrite drop or change any fact, name, number, date, quote, citation, ranking, or claim that two things happen at the same time?"** Edits under §6, §9, and §19 drop those most often. Treat a lost or changed claim as an error unless a pattern calls for cutting it. Then read the draft aloud and ask: **"What makes this still obviously AI-generated?"** Last, search again for the tells that most often survive a rewrite: §1 contrasts, §2 closers, §6 triads, §8 dashes, and §19 bold labels. Answer in 3-5 bullets.
+5. **Check the draft.** First ask, exactly: **"Did the rewrite drop or change any fact, name, number, date, quote, citation, ranking, or claim that two things happen at the same time?"** Edits under §6, §9, and §19 drop those most often. Treat a lost or changed claim as an error unless a pattern calls for cutting it. Then read the draft aloud and ask: **"What makes this still obviously AI-generated?"** Last, search again for the tells that most often survive a rewrite: §1 contrasts, §2 closers, §6 triads, §8 dashes, and §19 restated bold labels. Answer in 3-5 bullets.
 
 6. **Write the final version.** State each point naturally instead of patching flagged phrases one at a time. If a sentence stays awkward, rewrite the paragraph around its main point. Vary sentence length.
 
@@ -126,7 +126,7 @@ Reproduced from [blader/humanizer](https://github.com/blader/humanizer) v4.0.0 u
 
 **D. Formatting by rule** — the tell is decoration on every item.
 
-19. Bold as decoration, including lists where every item gets a bold label and a colon
+19. Bold as decoration in prose, and list labels the sentence after them repeats (a label naming a distinct item is fine)
 20. Decorative headings: Title Case, emojis and arrows, a rule between every section
 21. Curly quotation marks where the format uses straight ones — *weak alone*
 
